@@ -19,28 +19,37 @@
                 "data": {
                     "role_menu": "Opties:"
                 }
+            },
+            "reauth_confirm": {
+                "title": "Re-authenticate DAB Pumps",
+                "description": "Het wachtwoord voor {username} (installatie '{install_name}') werkt niet meer. Voer het nieuwe wachtwoord in.",
+                "data": {
+                    "password": "Wachtwoord"
+                }
             }
         },
         "error": {
             "cannot_connect": "Verbinding gefaald",
             "invalid_auth": "Verkeerde authenticatie",
-            "unknown": "Onverwachte fout"
+            "unknown": "Onverwachte fout",
+            "no_installations": "Geen DAB Pumps installaties gevonden voor dit account",
+            "role_update_failed": "De gebruikersrol kon niet worden bijgewerkt"
         },
         "abort": {
-            "already_configured": "Systeem is al geconfigureerd"
+            "already_configured": "Systeem is al geconfigureerd",
+            "reauth_successful": "Herauthenticatie geslaagd"
         }
     },
     "options": {
         "step": {
             "init": {
-                "title":"Algemene Opties",
+                "title": "Algemene Opties",
                 "data": {
                     "language": "Taal"
                 }
             }
         },
-        "error": {
-        }
+        "error": {}
     },
     "selector": {
         "role_menu": {

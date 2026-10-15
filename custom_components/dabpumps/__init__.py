@@ -4,15 +4,11 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from homeassistant.config_entries import ConfigEntry, ConfigType
-from homeassistant.const import Platform
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EVENT_HOMEASSISTANT_CLOSE
 from homeassistant.core import HomeAssistant
-from homeassistant.core import callback
-from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import config_validation as cv
-from homeassistant.helpers.translation import async_get_translations
+from homeassistant.helpers.typing import ConfigType
 
 from .coordinator import (
     DabPumpsCoordinatorFactory,
@@ -90,7 +86,6 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     config_entry.async_on_unload(config_entry.add_update_listener(_async_update_listener))
 
     # Perform coordinator unload actions when Home Assistant shuts down or config-entry unloads
-    @callback
     async def _async_coordinator_unload(*_: Any) -> None:
         await coordinator.async_on_unload()
     
@@ -100,9 +95,10 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> b
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry):
-    success = await hass.config_entries.async_unload_platforms(config_entry, PLATFORMS)
-    return success
+async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    # The coordinator is deliberately left in hass.data: the next setup copies its
+    # reload_count so the reload back-off survives a reload (see DabPumpsCoordinatorFactory.create)
+    return await hass.config_entries.async_unload_platforms(config_entry, PLATFORMS)
 
 
 async def _async_update_listener(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
@@ -112,10 +108,15 @@ async def _async_update_listener(hass: HomeAssistant, config_entry: ConfigEntry)
     await hass.config_entries.async_reload(config_entry.entry_id)
 
 
-async def async_remove_entry(hass: HomeAssistant, config_entry: ConfigEntry):
+async def async_remove_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> None:
     """Handle removal of the config-entry"""
 
-    # Remove our static cache file
+    # The cache file is shared by all installations of this integration.
+    # HA has already dropped this entry from its list, so any remaining entry still needs the file.
+    if hass.config_entries.async_entries(DOMAIN):
+        _LOGGER.debug("Other DAB Pumps config entries remain; keep the shared cache file")
+        return
+
     try:
         cache: DabPumpsStore = DabPumpsStore(hass, STORE_KEY_CACHE, STORE_WRITE_PERIOD_CACHE)
         await cache.async_remove()

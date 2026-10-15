@@ -43,7 +43,9 @@ MSG_LANGUAGE = 'language'
 STORE_KEY_CACHE = "cache"
 STORE_WRITE_PERIOD_CACHE = 300 # seconds
 
-DIAGNOSTICS_REDACT = { CONF_PASSWORD, 'client_secret' }
+# Keys redacted from diagnostics downloads. 'token' covers DabPumpsAccessTokenInfo and
+# DabPumpsRefreshTokenInfo; 'wstoken' and 'key' cover the WAMP session credentials.
+DIAGNOSTICS_REDACT = { CONF_PASSWORD, 'client_secret', 'token', 'wstoken', 'key' }
 
 ATTR_PRODUCT_DESCRIPTION = "Product Description"
 ATTR_DESTINATION_NAME = "Destination Name"
@@ -101,6 +103,7 @@ API_RETRY_DELAY = 30    # seconds
 
 COORDINATOR_RELOAD_DELAY = 1*60*60 # 1 hour in seconds
 COORDINATOR_RELOAD_DELAY_MAX = 24*60*60 # 24 hours in seconds
+COORDINATOR_AUTH_FAILURES_BEFORE_REAUTH = 3 # consecutive polls
 
 STATUS_VALIDITY_PERIOD = 15*60 # 15 minutes in seconds
 

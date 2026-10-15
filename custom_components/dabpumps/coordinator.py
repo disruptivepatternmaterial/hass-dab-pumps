@@ -6,8 +6,8 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, callback
-from homeassistant.core import async_get_hass
+from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers import device_registry
 from homeassistant.helpers import entity_registry
 from homeassistant.helpers.device_registry import DeviceRegistry
@@ -23,10 +23,10 @@ from homeassistant.const import (
 )
 
 from pydabpumps import (
+    DabPumpsAuthError,
     DabPumpsDevice,
     DabPumpsDeviceConfig,
     DabPumpsDeviceState,
-    DabPumpsParams,
     DabPumpsStatus,
     DabPumpsUserRole,
 ) 
@@ -44,6 +44,7 @@ from .const import (
     CONF_INSTALL_NAME,
     COORDINATOR_RELOAD_DELAY,
     COORDINATOR_RELOAD_DELAY_MAX,
+    COORDINATOR_AUTH_FAILURES_BEFORE_REAUTH,
     utcnow,
 )
 from .api import (
@@ -75,7 +76,7 @@ class DabPumpsCoordinatorFactory:
 
         language = options.get(CONF_LANGUAGE, DEFAULT_LANGUAGE)
         if language == LANGUAGE_AUTO:
-            system_lang = DabPumpsCoordinator.system_language()
+            system_lang = DabPumpsCoordinator.system_language(hass)
             language = system_lang if system_lang in LANGUAGE_MAP else LANGUAGE_AUTO_FALLBACK
 
         reload_count = 0
@@ -110,7 +111,7 @@ class DabPumpsCoordinatorFactory:
             api = DabPumpsApiFactory.create(hass, username, password, language)
         
             # Get an instance of our coordinator. This is unique to this install_id
-            coordinator = DabPumpsCoordinator(hass, config_entry.entry_id, api, configs, options)
+            coordinator = DabPumpsCoordinator(hass, config_entry, api, configs, options)
 
             # Apply reload settings if needed
             coordinator.reload_count = reload_count
@@ -123,20 +124,19 @@ class DabPumpsCoordinatorFactory:
 
 
     @staticmethod
-    def create_temp(username: str, password: str):
+    def create_temp(hass: HomeAssistant, username: str, password: str):
         """
         Get temporary Coordinator for a given username+password.
         This coordinator will only provide limited functionality
         """
     
-        # Get properties from the config_entry
-        hass = async_get_hass()
         configs = {
             CONF_USERNAME: username.lower(),
             CONF_PASSWORD: password,
         }
         options = {}
-        language = DabPumpsCoordinator.system_language
+        system_lang = DabPumpsCoordinator.system_language(hass)
+        language = system_lang if system_lang in LANGUAGE_MAP else LANGUAGE_AUTO_FALLBACK
         
         # Get a temporary instance of the DabPumpsApi for these credentials
         api = DabPumpsApiFactory.create_temp(hass, username, password, language)
@@ -150,21 +150,24 @@ class DabPumpsCoordinatorFactory:
 class DabPumpsCoordinator(DataUpdateCoordinator[tuple[dict[str,DabPumpsDevice],dict[str,DabPumpsDeviceConfig],dict[str,DabPumpsDeviceState]]]):
     """My custom coordinator."""
 
-    def __init__(self, hass: HomeAssistant, config_entry_id: str, api: DabPumpsApiWrap, configs: dict[str,Any], options: dict[str,Any]):
+    def __init__(self, hass: HomeAssistant, config_entry: ConfigEntry | None, api: DabPumpsApiWrap, configs: dict[str,Any], options: dict[str,Any]):
         """
         Initialize my coordinator.
+        config_entry is None for the temporary coordinator used during the config flow.
         """
         super().__init__(
             hass,
             _LOGGER,
             # Name of the data. For logging purposes.
             name=NAME,
+            # Explicit (possibly None) instead of relying on the ContextVar lookup that HA deprecated
+            config_entry=config_entry,
             # Polling interval. Will only be polled if there are subscribers.
             update_interval=timedelta(seconds=DEFAULT_POLLING_INTERVAL),
             update_method=self._async_update_data,
         )
 
-        self._config_entry_id: str = config_entry_id
+        self._config_entry_id: str | None = config_entry.entry_id if config_entry is not None else None
         self._api: DabPumpsApiWrap = api
         self._configs: dict[str,Any] = configs
         self._options: dict[str,Any] = options
@@ -184,18 +187,20 @@ class DabPumpsCoordinator(DataUpdateCoordinator[tuple[dict[str,DabPumpsDevice],d
         self._reload_time: datetime = utcnow()
         self._reload_delay: int = COORDINATOR_RELOAD_DELAY
 
+        # Consecutive polls that failed on authentication; reauth is only triggered once this persists
+        self._auth_failures: int = 0
+
         # Properties that are cached for performance
         self._user_role = None
         self._config_includes_free_account = None
         
 
     @staticmethod
-    def system_language() -> str:
+    def system_language(hass: HomeAssistant) -> str:
         """
         Get HASS system language as set under Settings->System->General.
         Unless that language is not allowed in DConnect DAB LANGUAGE_MAP, in that case fallback to DEFAULT_LANGUAGE
         """
-        hass = async_get_hass()
         return hass.config.language.split('-', 1)[0] # split from 'en-GB' to just 'en'
 
 
@@ -302,7 +307,7 @@ class DabPumpsCoordinator(DataUpdateCoordinator[tuple[dict[str,DabPumpsDevice],d
     def language(self) -> str:
         lang = self._options.get(CONF_LANGUAGE, DEFAULT_LANGUAGE)
         if lang == LANGUAGE_AUTO:
-            system_lang = DabPumpsCoordinator.system_language()
+            system_lang = DabPumpsCoordinator.system_language(self.hass)
             lang = system_lang if system_lang in LANGUAGE_MAP else LANGUAGE_AUTO_FALLBACK
     
         return lang
@@ -479,16 +484,25 @@ class DabPumpsCoordinator(DataUpdateCoordinator[tuple[dict[str,DabPumpsDevice],d
             # Periodically detect changes in the installation and trigger reload of the integration if needed.
             await self._async_detect_changes()
 
+            self._auth_failures = 0
+
             #_LOGGER.debug(f"device_map: {self._api.device_map}")
             #_LOGGER.debug(f"config_map: {self._api.device_config_map}")
             #_LOGGER.debug(f"status_map: {self._api.device_state_map}")
             return (self._api.device_map, self._api.device_config_map, self._api.device_state_map)
         
+        except DabPumpsAuthError as ex:
+            # pydabpumps also raises this for a single 401 on a data request, which can be transient.
+            # Only hand over to the HA reauth flow once it persists across several polls.
+            self._auth_failures += 1
+            if self._auth_failures >= COORDINATOR_AUTH_FAILURES_BEFORE_REAUTH:
+                raise ConfigEntryAuthFailed(f"Authentication with DAB Pumps failed: {ex}") from ex
+            raise UpdateFailed(f"Authentication with DAB Pumps failed ({self._auth_failures}/{COORDINATOR_AUTH_FAILURES_BEFORE_REAUTH}): {ex}") from ex
+
         except Exception as ex:
             raise UpdateFailed(f"Failed to request values from the api: {ex}") from ex    
 
 
-    @callback
     async def _async_push_data(self, device_serial:str):
         """
         Push new sensor data from API to all our listening entities.
@@ -540,7 +554,7 @@ class DabPumpsCoordinator(DataUpdateCoordinator[tuple[dict[str,DabPumpsDevice],d
                 "user_name": self.user_name,
                 "user_role": self.user_role,
                 "language": self.language,
-                "language_sys": self.system_language(),
+                "language_sys": self.system_language(self.hass),
             },
             "diagnostics": {
                 "reload_count": self.reload_count,

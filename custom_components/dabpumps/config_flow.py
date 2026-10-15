@@ -2,19 +2,16 @@
 from __future__ import annotations
 
 import logging
-import re
+from collections.abc import Mapping
 from typing import Any
 
 import voluptuous as vol
-import homeassistant.helpers.config_validation as cv
 
-from homeassistant import config_entries, exceptions
+from homeassistant import config_entries
+from homeassistant.config_entries import ConfigFlowResult
 
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import callback
 from homeassistant.components.diagnostics.util import async_redact_data
-from homeassistant.data_entry_flow import FlowResult
-from homeassistant.exceptions import HomeAssistantError
-from homeassistant.exceptions import IntegrationError
 from homeassistant.helpers.selector import selector
 
 
@@ -36,7 +33,6 @@ from .const import (
     DOMAIN,
     DEFAULT_USERNAME,
     DEFAULT_PASSWORD,
-    DEFAULT_POLLING_INTERVAL,
     DEFAULT_LANGUAGE,
     CONF_INSTALL_ID,
     CONF_INSTALL_NAME,
@@ -56,8 +52,17 @@ _LOGGER = logging.getLogger(__name__)
 
 # internal consts only used in config flow
 CONF_ROLE_MENU = "role_menu"
+ROLE_MENU_KEEP = "keep_role"
+ROLE_MENU_UPDATE = "update_role"
 
-@config_entries.HANDLERS.register("dabpumps")
+# Error keys; must exist under config.error in strings.json / translations
+ERROR_CANNOT_CONNECT = "cannot_connect"
+ERROR_INVALID_AUTH = "invalid_auth"
+ERROR_NO_INSTALLATIONS = "no_installations"
+ERROR_ROLE_UPDATE_FAILED = "role_update_failed"
+ERROR_UNKNOWN = "unknown"
+
+
 class ConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow."""
     
@@ -85,7 +90,7 @@ class ConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         _LOGGER.info("Trying connection...")
         
         self._errors = {}
-        self._coordinator = DabPumpsCoordinatorFactory.create_temp(self._username, self._password)
+        self._coordinator = DabPumpsCoordinatorFactory.create_temp(self.hass, self._username, self._password)
         try:
             # Call the DabPumpsApi with the detect_device method
             self._install_map = await self._coordinator.async_config_flow_data()
@@ -96,14 +101,16 @@ class ConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 self._errors = {}
                 return True
             else:
-                self._errors[CONF_USERNAME] = f"No installations detected"
+                self._errors["base"] = ERROR_NO_INSTALLATIONS
         
-        except DabPumpsError as e:
-            self._errors[CONF_PASSWORD] = f"Failed to connect to DAB Pumps DConnect servers"
-        except DabPumpsAuthError as e:
-            self._errors[CONF_PASSWORD] = f"Authentication failed"
-        except Exception as e:
-            self._errors[CONF_PASSWORD] = f"Unknown error: {e}"
+        # DabPumpsAuthError derives from DabPumpsError, so it must be tested first
+        except DabPumpsAuthError:
+            self._errors[CONF_PASSWORD] = ERROR_INVALID_AUTH
+        except DabPumpsError:
+            self._errors["base"] = ERROR_CANNOT_CONNECT
+        except Exception:
+            _LOGGER.exception("Unexpected exception while testing connection")
+            self._errors["base"] = ERROR_UNKNOWN
         
         return False
     
@@ -123,20 +130,21 @@ class ConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                 self._errors = {}
                 return True
             else:
-                self._errors[CONF_ROLE_MENU] = f"Role update failed"
+                self._errors[CONF_ROLE_MENU] = ERROR_ROLE_UPDATE_FAILED
         
-        except DabPumpsError as e:
-            self._errors[CONF_ROLE_MENU] = f"Failed to connect to DAB Pumps DConnect servers"
-        except DabPumpsAuthError as e:
-            self._errors[CONF_ROLE_MENU] = f"Authentication failed"
-        except Exception as e:
-            self._errors[CONF_ROLE_MENU] = f"Unknown error: {e}"
+        except DabPumpsAuthError:
+            self._errors[CONF_ROLE_MENU] = ERROR_INVALID_AUTH
+        except DabPumpsError:
+            self._errors[CONF_ROLE_MENU] = ERROR_CANNOT_CONNECT
+        except Exception:
+            _LOGGER.exception("Unexpected exception while updating role")
+            self._errors[CONF_ROLE_MENU] = ERROR_UNKNOWN
         
         return False
 
     
     # This is step 1 for the user/pass function.
-    async def async_step_user(self, user_input=None) -> FlowResult:
+    async def async_step_user(self, user_input=None) -> ConfigFlowResult:
         """Handle a flow initialized by the user."""
         
         if user_input is not None:
@@ -165,7 +173,7 @@ class ConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         )
     
     
-    async def async_step_install(self, user_input=None) -> FlowResult:
+    async def async_step_install(self, user_input=None) -> ConfigFlowResult:
         """Second step im config flow to choose which installation to use"""
         
         # if there is only one installation found, then automatically select it and skip display of form
@@ -183,8 +191,12 @@ class ConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
             # Do we have everything we need?
             if not self._errors and self._install_id and self._install_name:
+                # Abort now, before offering a role change on an installation that is already configured
+                await self.async_set_unique_id(self._install_id)
+                self._abort_if_unique_id_configured()
+
                 # go to the second step to check the user role in this install
-                return await self.async_step_role();
+                return await self.async_step_role()
 
         # Show a form with the list of installations
         _LOGGER.debug(f"Step install - show form")        
@@ -202,7 +214,7 @@ class ConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         )
     
     
-    async def async_step_role(self, user_input=None) -> FlowResult:
+    async def async_step_role(self, user_input=None) -> ConfigFlowResult:
         """Third step in config flow to check user role"""
         
         role_old = next( (install.role for install in self._install_map.values() if install.id == self._install_id), DabPumpsUserRole.CUSTOMER_FREE)
@@ -211,38 +223,30 @@ class ConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         if role_old not in [DabPumpsUserRole.CUSTOMER, DabPumpsUserRole.CUSTOMER_FREE]:
             _LOGGER.debug(f"Step role - auto keep current role {role_old}")
             user_input = {
-                CONF_ROLE_MENU: "KEEP"
+                CONF_ROLE_MENU: ROLE_MENU_KEEP
             }
         
         if user_input is not None:
             _LOGGER.debug(f"Step role - handle input {user_input}")
             
             chosen = user_input.get(CONF_ROLE_MENU, None)
-            match chosen:
-                case "keep_role":
-                    # Keep using the current role
-                    pass
-            
-                case "update_role":
-                    # Try and update role from customer to installer (regardless of subscription or free). 
-                    # Ignore if this fails
-                    role_old = DabPumpsUserRole.CUSTOMER
-                    role_new = DabPumpsUserRole.INSTALLER
-                    await self.async_try_update_role(role_old, role_new)
+            if chosen == ROLE_MENU_UPDATE:
+                # Try and update role from customer to installer (regardless of subscription or free). 
+                # Ignore if this fails
+                role_old = DabPumpsUserRole.CUSTOMER
+                role_new = DabPumpsUserRole.INSTALLER
+                await self.async_try_update_role(role_old, role_new)
+            # ROLE_MENU_KEEP (or an auto-kept role): nothing to do
 
             # Finish the config flow
-            return await self.async_step_finish();
+            return await self.async_step_finish()
 
         # Show a form with role choices
         _LOGGER.debug(f"Step role - build schema")
-        self._menu_options = {
-            "update_role": "update_role",
-            "keep_role": "keep_role",
-        }
         schema = vol.Schema({
             vol.Required(CONF_ROLE_MENU): selector({
                 "select": { 
-                    "options": list(self._menu_options.values()),
+                    "options": [ROLE_MENU_UPDATE, ROLE_MENU_KEEP],
                     "mode": "list",
                     "translation_key": CONF_ROLE_MENU
                 }
@@ -258,19 +262,22 @@ class ConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         )
     
     
-    async def async_step_finish(self, user_input=None) -> FlowResult:
-        """Configuration has finished"""
-
-        # Write credentials into persistant cache
+    async def _async_persist_login(self) -> None:
+        """
+        Write the freshly obtained login and refresh token into the persisted cache,
+        so the next startup can skip the password login.
+        """
         self._coordinator._install_id = self._install_id
         self._coordinator._install_name = self._install_name
         await self._coordinator.async_on_unload()
 
-        # Use install_id as unique_id for this config flow to avoid the same hub being setup twice
-        await self.async_set_unique_id(self._install_id)
-        self._abort_if_unique_id_configured()
-    
-        # Create the integration entry
+
+    async def async_step_finish(self, user_input=None) -> ConfigFlowResult:
+        """Configuration has finished"""
+
+        await self._async_persist_login()
+
+        # unique_id was already set and checked in async_step_install
         return self.async_create_entry(
             title = self._install_name, 
             data = {
@@ -282,6 +289,53 @@ class ConfigFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             options = {
                 CONF_LANGUAGE: DEFAULT_LANGUAGE,
             }
+        )
+
+
+    async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> ConfigFlowResult:
+        """Handle re-authentication after the coordinator raised ConfigEntryAuthFailed."""
+        self._username = entry_data.get(CONF_USERNAME, '')
+        self._install_id = entry_data.get(CONF_INSTALL_ID)
+        self._install_name = entry_data.get(CONF_INSTALL_NAME)
+        return await self.async_step_reauth_confirm()
+
+
+    async def async_step_reauth_confirm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        """Ask for a new password for the existing account and re-validate it."""
+        reauth_entry = self._get_reauth_entry()
+
+        if user_input is not None:
+            self._password = user_input.get(CONF_PASSWORD, '')
+
+            await self.async_try_connection()
+
+            if not self._errors and self._install_id not in self._install_map:
+                # Credentials are valid but no longer give access to this installation
+                self._errors["base"] = ERROR_NO_INSTALLATIONS
+
+            if not self._errors:
+                # Overwrite the cached refresh token with the one from the fresh password login;
+                # otherwise the next startup restores the token that caused the reauth.
+                await self._async_persist_login()
+
+                return self.async_update_reload_and_abort(
+                    reauth_entry,
+                    data_updates = {
+                        CONF_USERNAME: self._username,
+                        CONF_PASSWORD: self._password,
+                    },
+                )
+
+        return self.async_show_form(
+            step_id = "reauth_confirm",
+            description_placeholders = {
+                CONF_USERNAME: self._username,
+                CONF_INSTALL_NAME: self._install_name or "",
+            },
+            data_schema = vol.Schema({
+                vol.Required(CONF_PASSWORD): str,
+            }),
+            errors = self._errors,
         )
     
 
@@ -299,18 +353,14 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         """Initialize options flow."""
         super().__init__()
 
-        self._polling_interval = None
         self._language_code = None
         self._language_name = None
         self._errors = {}
-
-        # Display actual system language name or fallback language name inside the LANGUAGE_MAP options
-        self._language_map = LANGUAGE_MAP
-        self._language_map[LANGUAGE_AUTO] = self._get_language_auto_text()
+        self._language_map: dict[str, str] = {}
 
 
     def _get_language_auto_text(self):
-        system_language_code = DabPumpsCoordinator.system_language()
+        system_language_code = DabPumpsCoordinator.system_language(self.hass)
 
         if system_language_code in LANGUAGE_MAP:
             system_language_name = LANGUAGE_MAP[system_language_code]
@@ -320,8 +370,15 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             return LANGUAGE_TEXT_FALLBACK.format(fallback_language_name)
 
 
-    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         """Manage the options."""
+
+        # Build a per-flow copy; the module-level LANGUAGE_MAP must not be mutated
+        # (self.hass is only available once the flow runs, not in __init__)
+        if not self._language_map:
+            self._language_map = dict(LANGUAGE_MAP)
+            self._language_map[LANGUAGE_AUTO] = self._get_language_auto_text()
+
         if user_input is not None:
             _LOGGER.debug(f"Options flow handle user input")
             self._errors = {}
@@ -332,14 +389,8 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             # Do we have everything we need?
             if not self._errors and self._language_code:
 
-                # Value of data will be set on the options property of the config_entry instance.
-                self.hass.config_entries.async_update_entry(
-                    self.config_entry,
-                    options = {
-                        CONF_LANGUAGE: self._language_code,
-                    } 
-                )
-                return self.async_create_entry(title=None, data=None)
+                # The options flow manager stores the returned data as the entry options
+                return self.async_create_entry(data = { CONF_LANGUAGE: self._language_code })
 
             _LOGGER.error(f"Error: {self._errors}")
         

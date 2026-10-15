@@ -19,28 +19,37 @@
                 "data": {
                     "role_menu": "Options:"
                 }
+            },
+            "reauth_confirm": {
+                "title": "Re-authenticate DAB Pumps",
+                "description": "The password for {username} (installation '{install_name}') no longer works. Enter the new password.",
+                "data": {
+                    "password": "Password"
+                }
             }
         },
         "error": {
             "cannot_connect": "Failed to connect",
             "invalid_auth": "Invalid authentication",
-            "unknown": "Unexpected error"
+            "unknown": "Unexpected error",
+            "no_installations": "No DAB Pumps installations found for this account",
+            "role_update_failed": "Could not update the user role"
         },
         "abort": {
-            "already_configured": "Device is already configured"
+            "already_configured": "Device is already configured",
+            "reauth_successful": "Re-authentication was successful"
         }
     },
     "options": {
         "step": {
             "init": {
-                "title":"General Options",
+                "title": "General Options",
                 "data": {
                     "language": "Language"
                 }
             }
         },
-        "error": {
-        }
+        "error": {}
     },
     "selector": {
         "role_menu": {

@@ -177,6 +177,9 @@ logger:
 # Knowledge base
 For additional suggestions and tips&trick, see the [wiki](https://github.com/ankohanse/hass-dab-pumps/wiki).
 
+# Local control without the DAB cloud
+This integration only works through DAB's servers. Research notes on the local interfaces that exist on the hardware (BLE on H2D pumps, Modbus RTU on the DConnect Box) and what it would take to drop the cloud dependency are in [docs/decloud-plan.md](docs/decloud-plan.md). Nothing from that document is implemented yet.
+
 
 # Credits
 

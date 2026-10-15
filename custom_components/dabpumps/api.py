@@ -266,6 +266,11 @@ class DabPumpsApiWrap(AsyncDabPumps):
 
                 return True
             
+            except DabPumpsAuthError as ex:
+                # Rejected credentials outrank any earlier cache-miss exception,
+                # so the coordinator can turn this into a reauth flow
+                ex_first = ex
+
             except Exception as ex:
                 # Already logged at debug level in pydabpumps
                 if not ex_first:
@@ -275,7 +280,7 @@ class DabPumpsApiWrap(AsyncDabPumps):
         self._update_statistics(retries = retry, duration = utcnow()-ts_start)
 
         if ex_first:
-            if isinstance(ex_first, (DabPumpsConnectError,DabPumpsAuthError,DabPumpsLoginAbortedError)):
+            if isinstance(ex_first, (DabPumpsConnectError,DabPumpsLoginAbortedError)):
                 # Log as info, not warning, as we expect the issue to be gone at a next data refresh
                 _LOGGER.info(ex_first)
             else:
