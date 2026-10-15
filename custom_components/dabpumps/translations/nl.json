@@ -22,7 +22,7 @@
             },
             "reauth_confirm": {
                 "title": "Re-authenticate DAB Pumps",
-                "description": "Het wachtwoord voor {username} (installatie '{install_name}') werkt niet meer. Voer het nieuwe wachtwoord in.",
+                "description": "Het wachtwoord voor {username} (installatie {install_name}) werkt niet meer. Voer het nieuwe wachtwoord in.",
                 "data": {
                     "password": "Wachtwoord"
                 }

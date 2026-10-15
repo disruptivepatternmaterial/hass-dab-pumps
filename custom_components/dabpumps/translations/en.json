@@ -22,7 +22,7 @@
             },
             "reauth_confirm": {
                 "title": "Re-authenticate DAB Pumps",
-                "description": "The password for {username} (installation '{install_name}') no longer works. Enter the new password.",
+                "description": "The password for {username} (installation {install_name}) no longer works. Enter the new password.",
                 "data": {
                     "password": "Password"
                 }
