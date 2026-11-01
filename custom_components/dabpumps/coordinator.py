@@ -1,3 +1,4 @@
+import copy
 import logging
 import re
 
@@ -6,27 +7,21 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
+from homeassistant.const import CONF_USERNAME, CONF_PASSWORD, CONF_LANGUAGE
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
-from homeassistant.helpers import device_registry
-from homeassistant.helpers import entity_registry
+from homeassistant.helpers import device_registry, entity_registry
 from homeassistant.helpers.device_registry import DeviceRegistry
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
-from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
-from homeassistant.helpers.update_coordinator import UpdateFailed
+from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
-
-from homeassistant.const import (
-    CONF_USERNAME,
-    CONF_PASSWORD,
-    CONF_LANGUAGE,
-)
 
 from pydabpumps import (
     DabPumpsAuthError,
     DabPumpsDevice,
     DabPumpsDeviceConfig,
     DabPumpsDeviceState,
+    DabPumpsParams,
     DabPumpsStatus,
     DabPumpsUserRole,
 ) 
@@ -45,12 +40,16 @@ from .const import (
     COORDINATOR_RELOAD_DELAY,
     COORDINATOR_RELOAD_DELAY_MAX,
     COORDINATOR_AUTH_FAILURES_BEFORE_REAUTH,
+    STATUS_VALIDITY_PERIOD,
     utcnow,
 )
 from .api import (
     DabPumpsApiFactory,
     DabPumpsApiWrap,
     DabPumpsFetchOrder,
+)
+from .data import (
+    DEVICE_CONFIG_EXTRA_PARAMS,
 )
 
 # Define logger
@@ -164,7 +163,7 @@ class DabPumpsCoordinator(DataUpdateCoordinator[tuple[dict[str,DabPumpsDevice],d
             config_entry=config_entry,
             # Polling interval. Will only be polled if there are subscribers.
             update_interval=timedelta(seconds=DEFAULT_POLLING_INTERVAL),
-            update_method=self._async_update_data,
+            update_method=self._async_fetch_data,
         )
 
         self._config_entry_id: str | None = config_entry.entry_id if config_entry is not None else None
@@ -191,8 +190,17 @@ class DabPumpsCoordinator(DataUpdateCoordinator[tuple[dict[str,DabPumpsDevice],d
         self._auth_failures: int = 0
 
         # Properties that are cached for performance
-        self._user_role = None
-        self._config_includes_free_account = None
+        self._user_role: DabPumpsUserRole = None
+        self._config_includes_free_account: bool = None
+
+        self._install_serials: set[str] = set()
+        self._install_config_ids: set[str] = set()
+
+        self._device_map: dict[str, DabPumpsDevice] = {}
+        self._device_config_map: dict[str, DabPumpsDeviceConfig] = {}
+        self._device_state_map: dict[str, DabPumpsDeviceState] = {}
+
+        self._device_config_extra_params: dict[str, DabPumpsParams] = None
         
 
     @staticmethod
@@ -359,8 +367,7 @@ class DabPumpsCoordinator(DataUpdateCoordinator[tuple[dict[str,DabPumpsDevice],d
         dr: DeviceRegistry = device_registry.async_get(self.hass)
         valid_ids: dict[str, tuple[str,str]] = {}
 
-        install_devices = [ d for d in self._api.device_map.values() if d.install_id == self._install_id ]
-        for device in install_devices:
+        for device in self._device_map.values():
             device_id = self.create_id(device.serial)
             _LOGGER.debug(f"Create device {device_id} ({device.name}) for installation '{self._install_name}'")
 
@@ -421,8 +428,7 @@ class DabPumpsCoordinator(DataUpdateCoordinator[tuple[dict[str,DabPumpsDevice],d
         """
         _LOGGER.info(f"Subscribe to device state changes for installation '{self._install_name}'")
 
-        install_devices = [ d for d in self._api.device_map.values() if d.install_id == self._install_id ]
-        await self._api.async_subscribe_to_push_data(install_devices, self._async_push_data)
+        await self._api.async_subscribe_to_push_data(self._install_serials, self._async_push_data)
 
 
     async def async_config_flow_data(self):
@@ -464,7 +470,7 @@ class DabPumpsCoordinator(DataUpdateCoordinator[tuple[dict[str,DabPumpsDevice],d
             return None
 
     
-    async def _async_update_data(self):
+    async def _async_fetch_data(self):
         """
         Fetch sensor data from API.
         
@@ -489,7 +495,7 @@ class DabPumpsCoordinator(DataUpdateCoordinator[tuple[dict[str,DabPumpsDevice],d
             #_LOGGER.debug(f"device_map: {self._api.device_map}")
             #_LOGGER.debug(f"config_map: {self._api.device_config_map}")
             #_LOGGER.debug(f"status_map: {self._api.device_state_map}")
-            return (self._api.device_map, self._api.device_config_map, self._api.device_state_map)
+            return self._combine_data()
         
         except DabPumpsAuthError as ex:
             # pydabpumps also raises this for a single 401 on a data request, which can be transient.
@@ -501,15 +507,52 @@ class DabPumpsCoordinator(DataUpdateCoordinator[tuple[dict[str,DabPumpsDevice],d
 
         except Exception as ex:
             raise UpdateFailed(f"Failed to request values from the api: {ex}") from ex    
-
+        
 
     async def _async_push_data(self, device_serial:str):
         """
         Push new sensor data from API to all our listening entities.
         """
-        self.data = (self._api.device_map, self._api.device_config_map, self._api.device_state_map)
+        self.data = self._combine_data(device_serial)
         self.async_update_listeners()
 
+
+    def _combine_data(self, updated_serial:str = None):
+        """
+        Add extra/virtual meta_params and related status values
+        """
+        self._install_serials    = { d.serial for d in self._api.device_map.values() if d.install_id == self._install_id }
+        self._install_config_ids = { d.config_id for d in self._api.device_map.values() if d.install_id == self._install_id }
+
+        self._device_map =        { k:copy.deepcopy(self._api.device_map[k]) for k in self._install_serials }
+        self._device_config_map = { k:copy.deepcopy(self._api.device_config_map[k]) for k in self._install_config_ids }
+        self._device_state_map  = { k:copy.deepcopy(self._api.device_state_map[k]) for k in self._install_serials }
+
+        # Check for expired device status
+        for device_state in self._device_state_map.values():
+            ts = max( (ts for ts in [device_state.status_ts, device_state.lastrecv_ts] if ts is not None), default=None)
+
+            if ts and ts+timedelta(seconds=STATUS_VALIDITY_PERIOD) < utcnow():
+                # When expired, set all statuses to have code and value of None
+                device_state.status = { k:DabPumpsStatus(code=None,value=None) for k in device_state.status.keys() }
+
+        # Prepare extra meta params if not available yet
+        if self._device_config_extra_params is None:
+            self._device_config_extra_params = copy.deepcopy(DEVICE_CONFIG_EXTRA_PARAMS)
+            for param in self._device_config_extra_params.values():
+                param.name = self._api._translate_string(param.name)
+                param.values = { k:self._api._translate_string(v) for k,v in param.values.items() } if param.values is not None else None
+
+        # Add extra meta params to each device config.
+        for device_config in self._device_config_map.values():
+            device_config.meta_params = device_config.meta_params | self._device_config_extra_params
+
+        # Add extra status values to each device state. These do not expire
+        for device_state in self._device_state_map.values():
+            device_state.status["State"]  = DabPumpsStatus(code=device_state.state, value=self._api._translate_string(device_state.state) )
+
+        return (self._device_map, self._device_config_map, self._device_state_map)
+    
 
     async def _async_detect_changes(self):
         """Detect changes in the installation and trigger a integration reload if needed"""
@@ -550,14 +593,25 @@ class DabPumpsCoordinator(DataUpdateCoordinator[tuple[dict[str,DabPumpsDevice],d
         """
         return {
             "data": {
-                "install_id": self._install_id,
+                "install_id": self.install_id,
+                "install_name": self.install_name,
                 "user_name": self.user_name,
                 "user_role": self.user_role,
                 "language": self.language,
                 "language_sys": self.system_language(self.hass),
+                "valid_unique_ids": self._valid_unique_ids,
+                "valid_device_ids": self._valid_device_ids,
+                "install_serials": self._install_serials,
+                "install_config_ids": self._install_config_ids,
+                "device_map": self._device_map,
+                "device_config_map": self._device_config_map,
+                "device_config_extra_params": self._device_config_extra_params,
+                "device_state_map": self._device_state_map,
             },
             "diagnostics": {
-                "reload_count": self.reload_count,
+                "reload_count": self._reload_count,
+                "reload_time": self._reload_time,
+                "reload_delay": self._reload_delay,
             },
         }
     

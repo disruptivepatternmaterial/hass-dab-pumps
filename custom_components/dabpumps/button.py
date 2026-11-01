@@ -9,36 +9,10 @@ from homeassistant.core import callback
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from datetime import timedelta
-from datetime import datetime
-
-from collections import defaultdict
-from collections import namedtuple
-
-from pydabpumps import (
-    DabPumpsDevice,
-    DabPumpsParams,
-    DabPumpsStatus,
-    utcnow
-)
-
-from .const import (
-    DOMAIN,
-    COORDINATOR,
-    CONF_INSTALL_ID,
-    CONF_INSTALL_NAME,
-    CONF_OPTIONS,
-)
-from .coordinator import (
-    DabPumpsCoordinator,
-)
-from .entity import (
-    DabPumpsEntity,
-)
-from .helper import (
-    DabPumpsEntityHelper,
-)
-
+from pydabpumps import DabPumpsDevice, DabPumpsParams, DabPumpsStatus
+from .coordinator import DabPumpsCoordinator
+from .entity import DabPumpsEntity
+from .helper import DabPumpsEntityHelper
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -58,7 +32,7 @@ class DabPumpsButton(CoordinatorEntity, ButtonEntity, DabPumpsEntity):
     Or could be part of a communication module like DConnect Box/Box2
     """
     
-    def __init__(self, coordinator: DabPumpsCoordinator, status_key: str, device: DabPumpsDevice, params: DabPumpsParams, status: DabPumpsStatus, status_ts: datetime) -> None:
+    def __init__(self, coordinator: DabPumpsCoordinator, status_key: str, device: DabPumpsDevice, params: DabPumpsParams, status: DabPumpsStatus) -> None:
         """ 
         Initialize the sensor. 
         """
@@ -77,15 +51,13 @@ class DabPumpsButton(CoordinatorEntity, ButtonEntity, DabPumpsEntity):
         #_LOGGER.debug(f"Create entity '{self.entity_id}'")
         
         # update creation-time only attributes
-        self._dict = { k: v for k,v in params.values.items() }
-
         self._attr_icon = self.get_icon()
 
         self._attr_entity_category = self.get_entity_category()
         self._attr_device_class = None
         
         # Create all value related attributes
-        self._update_attributes(status, status_ts, force=True)
+        self._update_attributes(status, force=True)
     
     
     @callback
@@ -96,18 +68,14 @@ class DabPumpsButton(CoordinatorEntity, ButtonEntity, DabPumpsEntity):
         (_, _, device_state_map) = self._coordinator.data
         
         state = device_state_map.get(self._device.serial) if device_state_map is not None else None
-        if state is None:
-            return 
-        
-        status = state.status.get(self._status_key)
-        status_ts = state.status_ts
-
+        status = state.status.get(self._status_key) if state is not None else None
+                
         # Update any attributes
-        if self._update_attributes(status, status_ts):
+        if self._update_attributes(status):
             self.async_write_ha_state()
     
     
-    def _update_attributes(self, status: DabPumpsStatus, status_ts: datetime, force:bool=False) -> bool:
+    def _update_attributes(self, status: DabPumpsStatus, force:bool=False) -> bool:
         """
         Set entity value, unit and icon
         """
@@ -123,11 +91,11 @@ class DabPumpsButton(CoordinatorEntity, ButtonEntity, DabPumpsEntity):
         """
 
         # Pass the status.code and not the translated status.value
-        code = next((code for code,value in self._dict.items()), None)
+        code = next((code for code,value in self._params.values.items()), None)
         if code is None:
             return
         
         status = await self._coordinator.async_modify_data(self._device.serial, self._status_key, self.entity_id, code=code)
         if status is not None:
-            self._update_attributes(status, utcnow(), force=True)
+            self._update_attributes(status, force=True)
             self.async_write_ha_state()

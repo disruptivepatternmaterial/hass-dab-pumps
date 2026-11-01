@@ -2,9 +2,7 @@
 from datetime import datetime, timezone
 import logging
 
-from homeassistant.const import (
-    CONF_PASSWORD,
-)
+from homeassistant.const import CONF_PASSWORD
 from homeassistant.const import Platform
 
 _LOGGER: logging.Logger = logging.getLogger(__package__)
@@ -63,7 +61,6 @@ ATTR_PRODUCT_INSTALL = "Installation Name"
 # Extra attributes that are restored from the previous HA run
 ATTR_STORED_CODE = "code"
 ATTR_STORED_VALUE = "value"
-ATTR_STORED_TS = "ts"
 
 LANGUAGE_AUTO = "auto"
 LANGUAGE_AUTO_FALLBACK = "en"
@@ -88,15 +85,17 @@ LANGUAGE_MAP = {
 LANGUAGE_TEXT_AUTO ="Auto (use system setting: {0})"
 LANGUAGE_TEXT_FALLBACK ="Auto (use default: {0})"
 
-BINARY_SENSOR_VALUES_ON = ['1', 'active']
-BINARY_SENSOR_VALUES_OFF = ['0', 'disactive', 'inactive']
-BINARY_SENSOR_VALUES_ALL = BINARY_SENSOR_VALUES_ON + BINARY_SENSOR_VALUES_OFF
+BINARY_SENSOR_CODES_ON = ['1']
+BINARY_SENSOR_CODES_OFF = ['0']
+BINARY_SENSOR_CODES_ALL = BINARY_SENSOR_CODES_ON + BINARY_SENSOR_CODES_OFF
+BINARY_SENSOR_VALUES_ALL = ['active', 'Active', 'disactive', 'Inactive']
 
-SWITCH_VALUES_ON = ['1', 'Enable']
-SWITCH_VALUES_OFF = ['0', 'Disable']
-SWITCH_VALUES_ALL = SWITCH_VALUES_ON + SWITCH_VALUES_OFF
+SWITCH_CODES_ON = ['1']
+SWITCH_CODES_OFF = ['0']
+SWITCH_CODES_ALL = SWITCH_CODES_ON + SWITCH_CODES_OFF
+SWITCH_VALUES_ALL = ['Enable', 'Disable']
 
-BUTTON_VALUES_ALL = ['0', '1']
+BUTTON_CODES_ALL = ['0', '1']
 
 API_RETRY_ATTEMPTS = 2
 API_RETRY_DELAY = 30    # seconds
@@ -106,7 +105,6 @@ COORDINATOR_RELOAD_DELAY_MAX = 24*60*60 # 24 hours in seconds
 COORDINATOR_AUTH_FAILURES_BEFORE_REAUTH = 3 # consecutive polls
 
 STATUS_VALIDITY_PERIOD = 15*60 # 15 minutes in seconds
-
 
 # Global helper functions
 utcnow = lambda: datetime.now(timezone.utc)

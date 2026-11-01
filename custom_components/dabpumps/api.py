@@ -1,13 +1,14 @@
 """api.py: DabPumps API for DAB Pumps integration."""
 
 import asyncio
-from dataclasses import asdict
-from datetime import datetime, timedelta
-from enum import Enum
-from typing import Any, Final, List
 import httpx
 import logging
 import ssl
+
+from dataclasses import asdict
+from datetime import datetime, timedelta
+from enum import Enum
+from typing import Any, Final, Iterable
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import httpx_client as hass_httpx_client
@@ -243,7 +244,7 @@ class DabPumpsApiWrap(AsyncDabPumps):
                     case DabPumpsFetchMethod.WEB:
                         # Once a day, attempt to refresh
                         # - list of translations
-                        await self._async_poll_strings(self._language, expiry=24*60*60, ignore=ignore_periodic_refresh)
+                        await self._async_poll_strings(self._language, expiry=24*60*60, ignore=True)
 
                         # Once an hour, attempt to refresh
                         # - list of installations (just for diagnostics)
@@ -291,7 +292,7 @@ class DabPumpsApiWrap(AsyncDabPumps):
         return False
     
 
-    async def async_subscribe_to_push_data(self, devices: List[DabPumpsDevice], callback):
+    async def async_subscribe_to_push_data(self, device_serials: Iterable[str], callback):
         """
         Subscribe to changes in device state
         """
@@ -300,8 +301,8 @@ class DabPumpsApiWrap(AsyncDabPumps):
             self._async_data_listener = callback
 
             # Register listeners for changes in remote data
-            for device in devices:
-                await super().on_device_state(device.serial, self._on_device_state_handler)
+            for serial in device_serials:
+                await super().on_device_state(serial, self._on_device_state_handler)
 
         except Exception as e:
             _LOGGER.info(f"{e}")
@@ -460,9 +461,13 @@ class DabPumpsApiWrap(AsyncDabPumps):
             await super().fetch_install_details(install_id)
             self._fetch_ts[context] = utcnow()
 
-            # The call above alredy has retrieved all statuses for this install
-            for serial in [ d.serial for d in self._device_map.values() if d.install_id==install_id ]:
+            # The call above already has retrieved all statuses for this install. Mark them as freshly fetched.
+            install_serials = [ d.serial for d in self._device_map.values() if d.install_id==install_id ]
+            for serial in install_serials:
                 context = f"statuses {serial}"
+                self._fetch_ts[context] = utcnow()
+
+                context = f"state {serial}"
                 self._fetch_ts[context] = utcnow()
 
         except Exception as e:
@@ -477,24 +482,43 @@ class DabPumpsApiWrap(AsyncDabPumps):
         """
         Fetch device statuses for all devices in an install
         """
-
-        # Check for expired device statuses. 
-        # Devices are subscribed to cloud updates so could be updated from outside of this function
         expired = []
-        for serial in [ d.serial for d in self._device_map.values() if d.install_id==install_id ]:
+        inconsistent = []
+        install_serials = [ d.serial for d in self._device_map.values() if d.install_id==install_id ]
+
+        for serial in install_serials:
+
+            # Check for expired device statuses. 
+            # Devices are subscribed to cloud updates so could be updated from outside of this function
             context = f"statuses {serial}"
             if (utcnow() - self._fetch_ts.get(context, utcmin())).total_seconds() > expiry:
                 expired.append(serial)
 
-        if not expired:
+            # Check for inconsistent device state, i.e. when state.online boolean contradicts state.state string
+            context = f"state {serial}"
+            if (utcnow() - self._fetch_ts.get(context, utcmin())).total_seconds() > expiry:
+
+                device_state = self._device_state_map.get(serial)
+                if device_state is not None:
+                    offline1 = not device_state.online
+                    offline2 = device_state.state == "OFFLINE"
+                    if offline1 != offline2:
+                        inconsistent.append(serial)
+        
+        if not expired and not inconsistent:
             return
 
         try:
             await super().login()
             await super().fetch_install_statuses(install_id)    # The api will always fetch status for all devices
 
-            for serial in [ d.serial for d in self._device_map.values() if d.install_id==install_id ]:
+            # Mark all statuses within this install as freshly fetched.
+            for serial in expired:
                 context = f"statuses {serial}"
+                self._fetch_ts[context] = utcnow()
+
+            for serial in inconsistent:
+                context = f"state {serial}"
                 self._fetch_ts[context] = utcnow()
 
         except Exception as e:
@@ -549,6 +573,7 @@ class DabPumpsApiWrap(AsyncDabPumps):
         device_dict = { k:asdict(v) for k,v in self.device_map.items() if v.serial in install_serials }
         device_config_dict = { k:asdict(v) for k,v in self.device_config_map.items() if v.id in install_configs }
         device_state_dict = { k:asdict(v) for k,v in self.device_state_map.items() if k in install_serials }
+        string_dict = { k:v for k,v in self.string_map.items() }
         
         self._cache.set(f"login_info {self._username}", login_info_dict )
         self._cache.set(f"refresh_token_info {self._username}", refresh_token_dict )
@@ -557,6 +582,7 @@ class DabPumpsApiWrap(AsyncDabPumps):
         self._cache.set(f"device_map {install_id}", device_dict )
         self._cache.set(f"device_config_map {install_id}", device_config_dict )
         self._cache.set(f"device_state_map {install_id}", device_state_dict )
+        self._cache.set(f"string_map {self._language}", string_dict)
 
         # Note that async_write will reduce the number of writes if needed.
         await self._cache.async_write(force)
@@ -578,6 +604,7 @@ class DabPumpsApiWrap(AsyncDabPumps):
         device_dict = self._cache.get(f"device_map {install_id}", {})
         device_config_dict = self._cache.get(f"device_config_map {install_id}", {})
         device_state_dict = self._cache.get(f"device_state_map {install_id}", {})
+        string_dict = self._cache.get(f"string_map {self._language}", {})
 
         # Initialize login and refresh token info
         if not login_info_dict or not refresh_token_dict:
@@ -594,6 +621,7 @@ class DabPumpsApiWrap(AsyncDabPumps):
         self._device_map.update( { k:DabPumpsDevice(**v) for k,v in device_dict.items() } )
         self._device_config_map.update( { k:DabPumpsDeviceConfig(**v) for k,v in device_config_dict.items() } )
         self._device_state_map.update( { k:DabPumpsDeviceState(**v) for k,v in device_state_dict.items() } )
+        self._string_map.update( { k:v for k,v in string_dict.items() } )
 
 
     def _update_statistics(self, retries: int|None = None, duration: timedelta|None = None, fetch: DabPumpsFetchMethod|None = None):
