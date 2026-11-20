@@ -2,5 +2,6 @@
   "name": "DAB Pumps",
   "render_readme": true,
   "zip_release": true,
-  "filename": "dabpumps.zip"
+  "filename": "dabpumps.zip",
+  "homeassistant": "2026.11.0"
 }

@@ -107,7 +107,7 @@ class DabPumpsSelect(CoordinatorEntity, SelectEntity, DabPumpsEntity):
         """
 
         # Pass the status.code and not just the translated status.value
-        (code,value) = next(( (code,value) for code,value in self.params.values.items() if value == option), None)
+        (code,value) = next(( (code,value) for code,value in self._params.values.items() if value == option), None)
         if code is None:
             return
 

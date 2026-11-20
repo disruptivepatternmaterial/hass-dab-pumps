@@ -1,0 +1,5630 @@
+
+###
+### Bluetooth
+###
+
+The following are Bluetooth calls found by @spaco.
+The Wifi/Http calls found below are based on these
+
+
+{"p":"/api/v1/getmainserial","m":"GET"}
+{"p":"/api/v1/configure/settings","m":"GET"}
+{"p":"/api/v1/getDUMInfo/<serial>/","m":"GET"}
+{"p":"/api/v1/configure/paramsDefinitionCompressed?doc=<esy_style>&version=0","m":"GET"}
+
+{"p":"/api/v1/services","m":"GET"}	scan for nearby Wifi Access points
+
+Note: advantage of Bluetooth is is allows for automatic discovery
+Note: disadvantage is limited range; Wifi/Http works within entire home network.
+
+--------------------
+
+###
+### Wifi (always)
+###
+
+This request is always available, no physical button press needed on the device
+
+
+Request:
+GET http://<BOX_IP>/api/v1/getmainserial
+
+Response:
+    Transfer-Encoding: chunked
+    Expires: 0
+    Server: DabMGRWeb/0+unknown
+    Pragma: no-cache
+    Cache-Control: no-cache, no-store, must-revalidate
+    Date: Tue, 17 Nov 2026 22:52:14 GMT
+    Content-Type: application/json
+{
+    "serial": "<BOX_SERIAL>"
+}
+
+Note: <BOX_IP> is the ip-address of the DConnectBox2
+Note: <BOX_SERIAL> is the serial number of the DConnectBox2
+
+Note: did not find an associated call that will return all serial numbers.
+      See Q&A at bottom of this document for alternatives.
+
+--------------------
+
+Request:
+<Any of the requests below that need a physical button press..
+
+Response:
+    Date: Tue, 17 Nov 2026 23:46:36 GMT
+    Content-Length: 167
+    Content-Type: text/html; charset=utf-8
+    Server: DabMGRWeb/0+unknown
+
+<html>
+
+<head>
+    <title>404 - No Such Resource</title>
+</head>
+
+<body>
+    <h1>No Such Resource</h1>
+    <p>Sorry. No luck finding that resource.</p>
+</body>
+
+</html>
+
+--------------------
+
+
+###
+### Wifi (after physical button press)
+###
+
+The following requests are only available after the device button is pressed for 5 seconds.
+This activates pairing/local mode, and allows for Bluetooth and Http. The connection stays 
+open/alive as long as there is a regular request (tested for 24h with request once per minute).
+
+Have experimented with triggering this button press remotely (via the H2D app).
+None of the following actions puts the device in the correct mode:
+- 'Reset uC' / 'Reboot' / 'Restart Bridge'
+- 'Identify'
+- Hard reboot (power off/on)
+
+
+Request:
+GET http://<BOX_IP>/api/v1/configure/settings
+
+Response:
+{
+    "res": "OK",
+    "value": {
+        "uoms": {
+            "temperature": "C",
+            "liquid": "liter",
+            "flow": "l/min",
+            "volume": "mc",
+            "pressure": "bar",
+            "length": "m"
+        },
+        "macAddress": "B8:27:EB:2B:**:**\n",
+        "contacts": {
+            "installationPerson": "Anko Hanse"
+        },
+        "wifiConfigDone": true,
+        "wifipassword": "***REDACTED***",
+        "installationDescription": "DAB fresh water",
+        "firstConfigDone": true,
+        "installationName": "***REDACTED***",
+        "wifissid": "<WIFI_SSID>",
+        "installationAddress": "***REDACTED***",
+        "installationId": 0
+    }
+}
+
+--------------------
+
+Request:
+GET http://<BOX_IP>/api/v1/getDUMInfo
+or
+GET http://<BOX_IP>/api/v1/getDUMInfo/<BOX_SERIAL>
+
+Response:
+{
+    "res": "OK",
+    "value": {
+        "doc": "DConnectBox2_V1.0.0",
+        "update": {
+            "embedded": {
+                "machine": "nxp",
+                "version": "7.1.0",
+                "distro": "dconnectbox2"
+            },
+            "linux": {
+                "machine": "raspberrypi0-wifi",
+                "version": "1.1.100",
+                "distro": "dconnectbox2"
+            }
+        },
+        "name": "DConnect Box 2",
+        "family": "DConnectBox2",
+        "icon": "DConnectBox2"
+    }
+}
+
+Note: <BOX_SERIAL> is the serial of my DconnectBox2
+Note: remember the value in the 'doc' field, it is used later to get the device config and meta data
+
+--------------------
+
+Request:
+GET http://<BOX_IP>/api/v1/getDUMInfo/<PUMP_SERIAL_1>
+
+Response:
+{
+    "res": "OK",
+    "value": {
+        "doc": "e.sybox_40_80_V1.1.0",
+        "update": {
+            "embedded": {
+                "machine": "LPC1768",
+                "version": "5.29.0",
+                "distro": "esybox_40_80"
+            }
+        },
+        "name": "ESybox pump",
+        "family": "e.sybox_40_80",
+        "icon": "e.sybox_40_80"
+    }
+}
+
+Note: <PUMP_SERIAL_1> is the serial of my Esybox pump
+Note: remember the value in the 'doc' field, it is used later to get the device config and meta data
+
+--------------------
+
+Request:
+GET http://<BOX_IP>/api/v1/getDUMInfo/<PUMP_SERIAL_2>
+
+Response:
+{
+    "res": "FAILURE",
+    "value": "API /api/v1/getDUMInfo/<PUMP_SERIAL_2> (method GET) raised the following exception: u'<PUMP_SERIAL_2>'"
+}
+
+Note: only one Esybox pump is connected to the DConnectBox2. 
+Could potentially use this call to enumerate all connected devices?
+
+--------------------
+
+Request:
+GET http://<BOX_IP>/api/v1/configure/getparams
+
+Response:
+{
+    "res": "OK",
+    "value": {
+        "<PUMP_SERIAL_1>": {
+            "C1_PumpPhaseCurrent": 0,
+            "NA_ActiveInverters": "h",
+            ...
+        },
+        "<BOX_SERIAL>": {
+            "SwapFree": "",
+            "LinuxKernel": "Linux4.14.68",
+            ...
+        }
+    }
+}
+
+Note: returns all status values for all devices.
+Note: value 'h' indicates hidden parameter, value 'd' indicates disabled parameter
+Note: Could potentially be used to determine all serial numbers for all connected devices.
+
+--------------------
+
+Request:
+GET http://<BOX_IP>/api/v1/configure/getparams/<BOX_SERIAL>
+
+Response:
+{
+    "res": "OK",
+    "value": {
+        "SwapFree": "",
+        "LinuxKernel": "Linux4.14.68",
+        "Progress": "h",
+        "WlanTx": "402993",
+        "ModbusConfigurationConfirm": "h",
+        "Device 2 Serial": "",
+        "UpdateProgress": "h",
+        "Device 2 Type": 0,
+        "StartSetupAssistant": 1,
+        "Device 8 Type": 0,
+        "Device 8 Serial": "",
+        "Device 4 Type": 0,
+        "ModbusParity": 1,
+        "Device 5 Type": 0,
+        "NewDevices": "h",
+        "ModbusCountErrMsg": 0,
+        "Device 6 Type": 0,
+        "MacWlan": "b8:27:eb:2b:**:**",
+        "Device 4 Identify": 0,
+        "Device 7 Type": 0,
+        "ModbusBaudRate ": "h",
+        "BootTime": 2158120,
+        "ldVersion": "0.0.15",
+        "Device 3 Address": 0,
+        "ModbusStopBit ": "h",
+        "Device 1 Serial": "",
+        "Device 1 Type": 0,
+        "Device 5 Serial": "",
+        "Device 6 Identify": 0,
+        "Device 5 Identify": 0,
+        "SampleRate": 0,
+        "PLCStatus": 1,
+        "Device 7 Serial": "",
+        "IpWlan": "<BOX_IP>",
+        "Device 6 Serial": "",
+        "Device 3 Identify": 0,
+        "SystemStatus": 0,
+        "EthRx": "h",
+        "DabMgr": "2.1.5",
+        "ModbusBaudRate": 4,
+        "ModbusSlaveAddress": 1,
+        "CpuLoad": 22,
+        "ModbusStopBit": 1,
+        "EthTx": "h",
+        "StaticRam": 10012,
+        "Device 2 Address": 0,
+        "ResetActualFault": 0,
+        "Device 1 Address": 0,
+        "Image": "2026-0922",
+        "IpExt": "***REDACTED***",
+        "SignLevel": "92",
+        "TmpUsage": 0,
+        "FullLogFreq": "",
+        "Device 4 Address": 0,
+        "Device 8 Address": 0,
+        "UpdateSystem": 0,
+        "In1": 0,
+        "ModbusParity ": "h",
+        "Out1": 0,
+        "PLCUpdatingStatus": 0,
+        "DinamicRamUsed": 2668,
+        "ESSID": "***REDACTED***",
+        "Alarms": 0,
+        "Device 5 Address": 0,
+        "Device 3 Serial": "",
+        "FreeMem": 7344,
+        "Device 3 Type": 0,
+        "Device 7 Address": 0,
+        "Device 2 Identify": 0,
+        "WifiMode": "0",
+        "Device 8 Identify": 0,
+        "ucVersion": "7.1.0",
+        "FoundDevices": "h",
+        "MemFree": 381176,
+        "UpTime": 185584,
+        "WlanRx": "825486",
+        "StackRamUsed": 992,
+        "IpEth": "",
+        "MacEth": "",
+        "LinkQlty": "h",
+        "ModbusSlaveAddress ": "h",
+        "Device 4 Serial": "",
+        "TmpFsFree": 237.7,
+        "Device 1 Identify": 0,
+        "MailLogReceiver": "",
+        "Device 6 Address": 0,
+        "ModbusCountMsg": 0,
+        "Device 7 Identify": 0,
+        "UpdateResult": 0
+    }
+}
+
+Note: returns all status values for a single devices (DConnectBox2).
+Note: value 'h' indicates hidden parameter, value 'd' indicates disabled parameter
+
+--------------------
+
+Request:
+GET http://<BOX_IP>/api/v1/configure/getparams/<PUMP_SERIAL_1>
+
+Response:
+{
+    "res": "OK",
+    "value": {
+        "C1_PumpPhaseCurrent": 0,
+        "NA_ActiveInverters": "h",
+        "RamUsed": 0,
+        "TE_HeatsinkTemperatureC": 22,
+        "HO_PowerOnHours": 79405,
+        "PanelBoardId": 0,
+        "IC_InverterConfig": "h",
+        "Error24": 0,
+        "O2_Output2Function": "h",
+        "Error38": 0,
+        "Error39": 0,
+        "Error30": 0,
+        "Error31": 0,
+        "Error32": 0,
+        "Error33": 0,
+        "Error34": 0,
+        "Error35": 0,
+        "Error36": 0,
+        "Error37": 0,
+        "FCp_Partial_Delivered_Flow_Gall": "h",
+        "Error2": 0,
+        "Error3": 0,
+        "Error4": 0,
+        "Error5": 0,
+        "Error6": 0,
+        "Error7": 0,
+        "Error8": 0,
+        "UpdateType": 3,
+        "I4_Input4Function": "h",
+        "FaultPumpsNumber": "h",
+        "P2_Aux2SetpointPsi": "h",
+        "LatestError": 0,
+        "TE_HeatsinkTemperatureF": "h",
+        "Error51": 0,
+        "PowerShowerDuration": 300,
+        "PK_LowPressureThresholdPsi": "h",
+        "LastErrorOccurrency": 0,
+        "SleepModeEnable": 0,
+        "PowerShowerPressureBar": 48,
+        "Error12": 0,
+        "Error13": 0,
+        "Error10": 0,
+        "Error11": 0,
+        "Error16": 0,
+        "Error17": 0,
+        "Error14": 0,
+        "Error15": 0,
+        "Error18": 0,
+        "Error19": 0,
+        "Error43": 0,
+        "AD_AddressConfig": 1,
+        "FCp_Partial_Delivered_Flow_mc": 1787835,
+        "AE_AntiLock": 1,
+        "RP_PressureFallToRestartPsi": "h",
+        "Error45": 0,
+        "SystemStatus": 0,
+        "RunningPumpsNumber": "h",
+        "AF_AntiFreeze": 1,
+        "Error59": 0,
+        "FirmwareStatus": 1,
+        "PowerShowerCountdown": "h",
+        "PKm_SuctionPressurePsi": "h",
+        "P2_Aux2SetpointBar": "h",
+        "RemotePressureSensorStatus": "h",
+        "LA_Language": 1,
+        "LastErrorTimePowerOn": 0,
+        "SP_SetpointPressurePsi": "h",
+        "P3_Aux3SetpointPsi": "h",
+        "FCt_Total_Delivered_Flow_Gall": "h",
+        "ResetActualFault": 0,
+        "I3_Input3Function": "h",
+        "P1_Aux1SetpointPsi": "h",
+        "PowerShowerBoost": 20,
+        "P4_Aux4SetpointPsi": "h",
+        "TB_DryRunDetectTime": 10,
+        "GI_IntegralGainRigidPlant": 11,
+        "Error63": 0,
+        "Error62": 0,
+        "Error61": 0,
+        "Error60": 0,
+        "FCt_Total_Delivered_Flow_mc": 1787835,
+        "RP_PressureFallToRestartBar": 10,
+        "5msHandlerTime": 13,
+        "I2_Input2Function": "h",
+        "InverterPresentNumber": "h",
+        "RS_RotatingSpeed": 0,
+        "PR_RemotePressureSensor": "h",
+        "UpdateProgress": "h",
+        "SleepModePressureBar": 28,
+        "LvFwVersion": "5.29.0",
+        "SleepModeStartTime": 79200,
+        "AY_AntiCycling": 2,
+        "PW_ModifyPassword": 0,
+        "SleepModePressurePsi": "h",
+        "P3_Aux3SetpointBar": "h",
+        "GP_ProportionalGainElasticPlant": "h",
+        "PumpDisable": 0,
+        "MS_MeasureSystem": 0,
+        "SleepModeCountdown": "h",
+        "VP_PressureBar": 42,
+        "SleepModeDuration": 25200,
+        "VF_FlowLiter": 0,
+        "P4_Aux4SetpointBar": "h",
+        "MainLoopTime": 1396,
+        "Error48": 0,
+        "Error41": 0,
+        "Error40": 0,
+        "PowerShowerPressurePsi": "h",
+        "Error42": 0,
+        "StartNumber": 305666,
+        "Error44": 0,
+        "Error47": 0,
+        "Error46": 0,
+        "Error49": 0,
+        "MainLoopMaxTime": 3781,
+        "PK_LowPressureThresholdBar": "h",
+        "GP_ProportionalGainRigidPlant": 5,
+        "GI_IntegralGainElasticPlant": "h",
+        "Error1": 0,
+        "I1_Input1Function": "h",
+        "PO_OutputPower": 0,
+        "RM_MaximumSpeed": 3050,
+        "HvBoardId": 1,
+        "ProductType": 65,
+        "GroupFlowLiter": "h",
+        "ET_ExchangeTime": "h",
+        "P1_Aux1SetpointBar": "h",
+        "VP_PressurePsi": "h",
+        "ActiveInverterNumber": "h",
+        "UpdateFirmware": 0,
+        "O1_Output1Function": "h",
+        "EK_LowPressEnable": "h",
+        "RamUsedMax": 0,
+        "Error64": 0,
+        "PressureTarget": "h",
+        "Error58": 0,
+        "Error9": 0,
+        "Error56": 0,
+        "Error57": 0,
+        "Error54": 0,
+        "Error55": 0,
+        "Error52": 0,
+        "Error53": 0,
+        "Error50": 0,
+        "SleepModeReduction": 30,
+        "VF_FlowGall": "h",
+        "T2_SwitchOffDelay": 10,
+        "HvFwVersion": "1.51.0",
+        "SP_SetpointPressureBar": 40,
+        "HO_PumpRunHours": 3483,
+        "GroupFlowGall": "h",
+        "GroupPower": "h",
+        "PKm_SuctionPressureBar": "h",
+        "T1_LowPressureDelay": "h",
+        "PumpStatus": 0,
+        "Error28": 0,
+        "KernelVersion": 2,
+        "ContemporaryInverterNumber": "h",
+        "NC_ActiveContemporaryInverters": "h",
+        "OD_PlantType": 1,
+        "Error29": 0,
+        "MainLoopMinTime": 720,
+        "Error25": 0,
+        "Error23": 0,
+        "Error22": 0,
+        "Error21": 0,
+        "Error20": 0,
+        "Error27": 0,
+        "Error26": 0,
+        "PowerShowerCommand": 0,
+        "5msHandlerMaxTime": 22
+    }
+}
+
+Note: returns all status values for a single device (Esybox pump).
+Note: value 'h' indicates hidden parameter, value 'd' indicates disabled parameter
+
+--------------------
+
+Request:
+GET http://<BOX_IP>/api/v1/configure/paramsDefinition?doc=DConnectBox2_V1.0.0&version=0
+
+Response:
+{
+    "res": "UPD",
+    "value": {
+        "definition": "",
+        "description": "DConnectBox2 Version 1.0.0",
+        "metric": 1,
+        "label": "DConnectBox2",
+        "childnum": 7,
+        "version": 26,
+        "state_validity": 16,
+        "metadata": {
+            "groupsApp": [
+                "Configuration",
+                "I/O",
+                "Advanced",
+                "Setup Assistant",
+                "Modbus",
+                "ModbusDevice"
+            ],
+            "params": [
+                {
+                    "group": "Setup Assistant",
+                    "name": "StartSetupAssistant",
+                    "family": "gear",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "values": [
+                        [
+                            1,
+                            "Devices: Evoplus"
+                        ],
+                        [
+                            0,
+                            "Not Selected, Please Select the device connected  "
+                        ]
+                    ],
+                    "unit": "",
+                    "functionality": "discovery",
+                    "log": [],
+                    "groupPos": 0,
+                    "groupApp": "Setup Assistant",
+                    "type": "enum",
+                    "change": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Setup Assistant",
+                    "name": "FoundDevices",
+                    "family": "gear",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "unit": "",
+                    "functionality": "discovery",
+                    "log": [],
+                    "groupPos": 20,
+                    "groupApp": "Setup Assistant",
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Setup Assistant",
+                    "name": "ModbusConfigurationConfirm",
+                    "family": "gear",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "values": [
+                        [
+                            0,
+                            "Did you set Different Address and Modbus Parameters into the devices, YES"
+                        ],
+                        [
+                            1,
+                            "Did you set Different Address and Modbus Parameters into the devices, NO"
+                        ]
+                    ],
+                    "functionality": "discovery",
+                    "log": [],
+                    "groupPos": 10,
+                    "groupApp": "Setup Assistant",
+                    "type": "enum",
+                    "change": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Setup Assistant",
+                    "name": "Progress",
+                    "family": "progress_bar",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "-1": null,
+                        "d": "disabled"
+                    },
+                    "unit": "%",
+                    "functionality": "discovery",
+                    "log": [],
+                    "groupPos": 10,
+                    "groupApp": "Setup Assistant",
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "PLC",
+                    "name": "UpdateDivertronVSD",
+                    "family": "gear",
+                    "values": [
+                        [
+                            1,
+                            "Update"
+                        ],
+                        [
+                            2,
+                            "Force Update"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "R&D"
+                    ],
+                    "groupPos": 1,
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "PLC",
+                    "name": "UpdateDivertronPlus",
+                    "family": "gear",
+                    "values": [
+                        [
+                            1,
+                            "Update"
+                        ],
+                        [
+                            2,
+                            "Force Update"
+                        ],
+                        [
+                            3,
+                            "Service"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "R&D"
+                    ],
+                    "groupPos": 2,
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "PLC",
+                    "name": "AssociatePLC",
+                    "family": "gear",
+                    "values": [
+                        [
+                            1,
+                            "Associate"
+                        ]
+                    ],
+                    "groupPos": 3,
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "PLC",
+                    "name": "DisassociatePLC",
+                    "family": "gear",
+                    "values": [
+                        [
+                            1,
+                            "Disassociate"
+                        ]
+                    ],
+                    "groupPos": 4,
+                    "groupApp": "Advanced",
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Advanced",
+                    "name": "NoWireless",
+                    "family": "gear",
+                    "values": [
+                        [
+                            1,
+                            "Disassociate"
+                        ]
+                    ],
+                    "groupPos": 5,
+                    "groupApp": "Advanced",
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "PLC",
+                    "name": "UpdatePLCProgress",
+                    "family": "progress_bar",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "groupPos": 5,
+                    "type": "measure",
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "PLC",
+                    "name": "PLCStatus",
+                    "family": "gear",
+                    "values": [
+                        [
+                            1,
+                            "Not associated",
+                            "warning"
+                        ],
+                        [
+                            2,
+                            "Associated"
+                        ],
+                        [
+                            3,
+                            "Connecting",
+                            "info"
+                        ],
+                        [
+                            4,
+                            "Connected"
+                        ],
+                        [
+                            5,
+                            "Updating",
+                            "alert"
+                        ],
+                        [
+                            6,
+                            "Error Update",
+                            "error"
+                        ],
+                        [
+                            7,
+                            "Too Many Failures",
+                            "error"
+                        ]
+                    ],
+                    "parameter": "",
+                    "range": "1 week",
+                    "functionality": "",
+                    "log": [
+                        "INSTALLER",
+                        "SERVICE",
+                        "R&D"
+                    ],
+                    "aggregation_function": "avg",
+                    "groupPos": 0,
+                    "warn_low": 0,
+                    "type": "enum",
+                    "unit": "",
+                    "view": [
+                        "INSTALLER",
+                        "SERVICE",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "UpTime",
+                    "family": "time",
+                    "weight": 1,
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 1,
+                    "groupApp": "Configuration",
+                    "type": "measure",
+                    "unit": "s",
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "BootTime",
+                    "family": "time",
+                    "weight": 1,
+                    "unit": "s",
+                    "log": [],
+                    "groupPos": 1,
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "DabMgr",
+                    "family": "gear",
+                    "length": 20,
+                    "unit": "SW. Vers.",
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 2,
+                    "type": "label",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "CpuLoad",
+                    "family": "gear",
+                    "weight": 1,
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 2,
+                    "groupApp": "Configuration",
+                    "type": "measure",
+                    "unit": "%",
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "SampleRate",
+                    "family": "time",
+                    "weight": 1,
+                    "unit": "",
+                    "values": [
+                        [
+                            0,
+                            "20 secondi"
+                        ],
+                        [
+                            3,
+                            "5 secondi",
+                            "alert"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 2,
+                    "groupApp": "Configuration",
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "Image",
+                    "family": "gear",
+                    "length": 20,
+                    "unit": "",
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 1,
+                    "groupApp": "Configuration",
+                    "type": "label",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "MemFree",
+                    "family": "gear",
+                    "weight": 1,
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 2,
+                    "type": "measure",
+                    "unit": "kB",
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "WifiMode",
+                    "family": "gear",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "values": [
+                        [
+                            0,
+                            "Operative"
+                        ],
+                        [
+                            1,
+                            "Configuration",
+                            "info"
+                        ],
+                        [
+                            2,
+                            "Disabled",
+                            "disabled"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "R&D"
+                    ],
+                    "groupPos": 3,
+                    "type": "enum",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "CUSTOMER"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "ESSID",
+                    "family": "gear",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "length": 32,
+                    "unit": "",
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 3,
+                    "type": "label",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "SignLevel",
+                    "family": "gear",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "unit": "%",
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 3,
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "IpWlan",
+                    "family": "gear",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "length": 20,
+                    "unit": "Address",
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 3,
+                    "type": "label",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "IpExt",
+                    "family": "gear",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "length": 20,
+                    "unit": "Address",
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 3,
+                    "type": "label",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "MacWlan",
+                    "family": "gear",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "length": 20,
+                    "unit": "",
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 3,
+                    "groupApp": "Configuration",
+                    "type": "label",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "WlanTx",
+                    "family": "gear",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "weight": 0.0009765625,
+                    "unit": "MByte",
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 3,
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "WlanRx",
+                    "family": "gear",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "weight": 0.0009765625,
+                    "unit": "MByte",
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 3,
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Modbus",
+                    "name": "ModbusBaudRate",
+                    "family": "plug",
+                    "values": [
+                        [
+                            0,
+                            "1200 bit/s"
+                        ],
+                        [
+                            1,
+                            "2400 bit/s"
+                        ],
+                        [
+                            2,
+                            "4800 bit/s"
+                        ],
+                        [
+                            3,
+                            "9600 bit/s"
+                        ],
+                        [
+                            4,
+                            "19200 bit/s"
+                        ],
+                        [
+                            5,
+                            "38400 bit/s"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "R&D"
+                    ],
+                    "groupPos": 1,
+                    "groupApp": "Modbus",
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Modbus",
+                    "name": "ModbusStopBit",
+                    "family": "plug",
+                    "values": [
+                        [
+                            1,
+                            "1 bit Stop"
+                        ],
+                        [
+                            2,
+                            "2 bit Stop",
+                            "alert"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "R&D"
+                    ],
+                    "groupPos": 2,
+                    "groupApp": "Modbus",
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Modbus",
+                    "name": "ModbusParity",
+                    "family": "plug",
+                    "values": [
+                        [
+                            0,
+                            "No parity",
+                            "disabled"
+                        ],
+                        [
+                            1,
+                            "Even parity"
+                        ],
+                        [
+                            2,
+                            "Odd parity",
+                            "disabled"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "R&D"
+                    ],
+                    "groupPos": 3,
+                    "groupApp": "Modbus",
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Modbus",
+                    "name": "ModbusCountMsg",
+                    "family": "gear",
+                    "log": [
+                        "SERVICE",
+                        "R&D"
+                    ],
+                    "groupPos": 10,
+                    "groupApp": "Modbus",
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Modbus",
+                    "name": "ModbusCountErrMsg",
+                    "family": "gear",
+                    "log": [
+                        "SERVICE",
+                        "R&D"
+                    ],
+                    "groupPos": 11,
+                    "groupApp": "Modbus",
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "ModbusDevice",
+                    "name": "Device 1 Address",
+                    "family": "plug",
+                    "min": 1,
+                    "widget-modifier": {
+                        "0": "disabled",
+                        "h": "hidden"
+                    },
+                    "log": [
+                        "SERVICE",
+                        "R&D"
+                    ],
+                    "max": 247,
+                    "groupPos": 0,
+                    "groupApp": "ModbusDevice",
+                    "type": "measure",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "CUSTOMER",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "ModbusDevice",
+                    "name": "Device 1 Type",
+                    "family": "pump",
+                    "widget-modifier": {
+                        "0": "disabled",
+                        "d": "disabled",
+                        "h": "hidden"
+                    },
+                    "values": [
+                        [
+                            1,
+                            "Evoplus ML 1-2.xx"
+                        ],
+                        [
+                            2,
+                            "Evoplus ML 3.xx",
+                            "alert"
+                        ],
+                        [
+                            3,
+                            "Evoplus Small 1.xx"
+                        ],
+                        [
+                            4,
+                            "Evoplus Small 2.xx"
+                        ],
+                        [
+                            0,
+                            "Non Usato"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "R&D"
+                    ],
+                    "groupPos": 0,
+                    "groupApp": "ModbusDevice",
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "CUSTOMER",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "ModbusDevice",
+                    "name": "Device 1 Identify",
+                    "family": "electric",
+                    "unit": "",
+                    "values": [
+                        [
+                            0,
+                            null,
+                            "disabled"
+                        ],
+                        [
+                            1,
+                            "Identify"
+                        ],
+                        [
+                            2,
+                            "Present",
+                            "disabled"
+                        ]
+                    ],
+                    "log": [],
+                    "groupPos": 0,
+                    "groupApp": "ModbusDevice",
+                    "type": "enum",
+                    "change": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "ModbusDevice",
+                    "name": "Device 1 Serial",
+                    "family": "gear",
+                    "log": [],
+                    "groupPos": 0,
+                    "groupApp": "ModbusDevice",
+                    "type": "label",
+                    "change": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "groupPos": 1,
+                    "groupApp": "ModbusDevice",
+                    "extends": "Device 1 Address",
+                    "name": "Device 2 Address"
+                },
+                {
+                    "groupPos": 1,
+                    "groupApp": "ModbusDevice",
+                    "extends": "Device 1 Type",
+                    "name": "Device 2 Type"
+                },
+                {
+                    "groupPos": 1,
+                    "groupApp": "ModbusDevice",
+                    "extends": "Device 1 Identify",
+                    "name": "Device 2 Identify"
+                },
+                {
+                    "groupPos": 1,
+                    "groupApp": "ModbusDevice",
+                    "extends": "Device 1 Serial",
+                    "name": "Device 2 Serial"
+                },
+                {
+                    "groupPos": 2,
+                    "groupApp": "ModbusDevice",
+                    "extends": "Device 1 Address",
+                    "name": "Device 3 Address"
+                },
+                {
+                    "groupPos": 2,
+                    "groupApp": "ModbusDevice",
+                    "extends": "Device 1 Type",
+                    "name": "Device 3 Type"
+                },
+                {
+                    "groupPos": 2,
+                    "groupApp": "ModbusDevice",
+                    "extends": "Device 1 Identify",
+                    "name": "Device 3 Identify"
+                },
+                {
+                    "groupPos": 2,
+                    "groupApp": "ModbusDevice",
+                    "extends": "Device 1 Serial",
+                    "name": "Device 3 Serial"
+                },
+                {
+                    "groupPos": 3,
+                    "groupApp": "ModbusDevice",
+                    "extends": "Device 1 Address",
+                    "name": "Device 4 Address"
+                },
+                {
+                    "groupPos": 3,
+                    "groupApp": "ModbusDevice",
+                    "extends": "Device 1 Type",
+                    "name": "Device 4 Type"
+                },
+                {
+                    "groupPos": 3,
+                    "groupApp": "ModbusDevice",
+                    "extends": "Device 1 Identify",
+                    "name": "Device 4 Identify"
+                },
+                {
+                    "groupPos": 3,
+                    "groupApp": "ModbusDevice",
+                    "extends": "Device 1 Serial",
+                    "name": "Device 4 Serial"
+                },
+                {
+                    "group": "Advanced",
+                    "name": "SystemStatus",
+                    "family": "gear",
+                    "min": 0,
+                    "widget-modifier": {},
+                    "warn_hi": 0,
+                    "weight": 0,
+                    "unit": "",
+                    "values": [
+                        [
+                            0,
+                            "Already Updated"
+                        ],
+                        [
+                            1,
+                            "Updates Available",
+                            "alert"
+                        ]
+                    ],
+                    "log": [],
+                    "max": 0,
+                    "groupPos": 10,
+                    "warn_low": 0,
+                    "type": "enum",
+                    "change": [],
+                    "view": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Advanced",
+                    "name": "UpdateSystem",
+                    "family": "gear",
+                    "min": 0,
+                    "widget-modifier": {
+                        "0": "hidden"
+                    },
+                    "warn_hi": 0,
+                    "weight": 0,
+                    "unit": "",
+                    "values": [
+                        [
+                            0,
+                            "Update later"
+                        ],
+                        [
+                            1,
+                            "Update now",
+                            "alert"
+                        ]
+                    ],
+                    "log": [],
+                    "max": 0,
+                    "groupPos": 20,
+                    "warn_low": 0,
+                    "type": "enum",
+                    "change": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Advanced",
+                    "name": "Reboot",
+                    "family": "gear",
+                    "values": [
+                        [
+                            1,
+                            "Reset uC"
+                        ],
+                        [
+                            2,
+                            "Reboot"
+                        ],
+                        [
+                            3,
+                            "Restart Bridge"
+                        ]
+                    ],
+                    "log": [],
+                    "groupPos": 30,
+                    "type": "enum",
+                    "change": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "I/O",
+                    "name": "In1",
+                    "family": "gear",
+                    "min": 0,
+                    "widget-modifier": {},
+                    "warn_hi": 0,
+                    "weight": 0,
+                    "unit": "",
+                    "values": [
+                        [
+                            0,
+                            "disactive"
+                        ],
+                        [
+                            1,
+                            "active",
+                            "info"
+                        ]
+                    ],
+                    "log": [],
+                    "max": 0,
+                    "groupPos": 1,
+                    "groupApp": "I/O",
+                    "warn_low": 0,
+                    "type": "enum",
+                    "change": [],
+                    "view": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "I/O",
+                    "name": "Out1",
+                    "family": "onoff",
+                    "min": 0,
+                    "widget-modifier": {},
+                    "warn_hi": 0,
+                    "weight": 0,
+                    "unit": "",
+                    "values": [
+                        [
+                            0,
+                            "disactive"
+                        ],
+                        [
+                            1,
+                            "active",
+                            "alert"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "R&D"
+                    ],
+                    "max": 0,
+                    "groupPos": 1,
+                    "groupApp": "I/O",
+                    "warn_low": 0,
+                    "type": "enum",
+                    "change": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                }
+            ],
+            "groups": [
+                "Status",
+                "PLC",
+                "Modbus",
+                "ModbusDevice",
+                "I/O",
+                "Advanced"
+            ],
+            "family": "DconnectBox2"
+        },
+        "name": "DConnectBox2_V1.0.0"
+    }
+}
+
+Note: 'doc' parameter is using value of 'doc' field as returned in getDUMInfo request
+Note: 'version' value does not make a difference, 0-25 all seem to return same info.
+      26 and higher gives response:
+{
+    "res": "OK",
+    "value": {
+        "version": 26
+    }
+}
+
+--------------------
+
+Request:
+GET http://<BOX_IP>/api/v1/configure/paramsDefinition?doc=e.sybox_40_80_V1.1.0&version=0
+
+Response:
+{
+    "res": "UPD",
+    "value": {
+        "definition": "",
+        "name": "e.sybox_V1.1.0",
+        "metric": 1,
+        "configuration_id": "32767769-69fc-493e-84db-8cc8e96e4166",
+        "label": "",
+        "childnum": 0,
+        "version": 16,
+        "state_validity": 15,
+        "metadata": {
+            "family": "e.sybox",
+            "groupsApp": [
+                "Status",
+                "Data",
+                "Setpoint",
+                "Group Status",
+                "Comfort",
+                "Consumption",
+                "Errors",
+                "Advanced"
+            ],
+            "trigger": [
+                {
+                    "warning": [
+                        {
+                            "body": {
+                                "en": "DUM [dum.serial] is reaching 10000 work hours since last maintenance",
+                                "it": "Il DUM [dum.serial] sta raggiungendo le 10000 ore di lavoro dall'ultima manutenzione"
+                            },
+                            "delta-threshold": 9500,
+                            "recipients": [
+                                "CUSTOMER",
+                                "INSTALLER"
+                            ],
+                            "subject": {
+                                "en": "Maintenance warning for [dum.serial] in installation  [installation.name]",
+                                "it": "Avviso manutenzione per [dum.serial] dell'installazione [installation.name]"
+                            }
+                        },
+                        {
+                            "body": {
+                                "en": "DUM [dum.serial] reached 10000 work hours since last maintenance",
+                                "it": "Il DUM [dum.serial] ha raggiunto le 10000 ore di lavoro dall'ultima manutenzione"
+                            },
+                            "delta-threshold": 10000,
+                            "recipients": [
+                                "CUSTOMER",
+                                "INSTALLER"
+                            ],
+                            "subject": {
+                                "en": "Maintenance warning for [dum.serial] in installation  [installation.name]",
+                                "it": "Avviso manutenzione per [dum.serial] dell'installazione [installation.name]"
+                            }
+                        },
+                        {
+                            "body": {
+                                "en": "DUM [dum.serial] exceeded 10000 work hours since last maintenance",
+                                "it": "Il DUM [dum.serial] ha superato le 10000 ore di lavoro dall'ultima manutenzione"
+                            },
+                            "delta-threshold": 11000,
+                            "recipients": [
+                                "CUSTOMER",
+                                "INSTALLER"
+                            ],
+                            "subject": {
+                                "en": "Maintenance ALERT for [dum.serial] in installation  [installation.name]",
+                                "it": "Attenzione manutenzione necessaria per [dum.serial] dell'installazione [installation.name]"
+                            }
+                        }
+                    ],
+                    "code": "MANUT10000H",
+                    "parameter": "WorkHours",
+                    "description": {
+                        "en": "Scheduled maintenance after 10000 work hours",
+                        "it": "Manutenzione a tempo dopo 10000 ore di lavoro"
+                    }
+                },
+                {
+                    "warning": [
+                        {
+                            "body": {
+                                "en": "DUM [dum.serial] is reaching 10000 work hours of pump since last maintenance",
+                                "it": "Il DUM [dum.serial] sta raggiungendo le 10000 ore di lavoro della pompa dall'ultima manutenzione"
+                            },
+                            "delta-threshold": 10000,
+                            "recipients": [
+                                "CUSTOMER",
+                                "INSTALLER"
+                            ],
+                            "subject": {
+                                "en": "Maintenance warning for [dum.serial] in installation  [installation.name]",
+                                "it": "Avviso manutenzione per [dum.serial] dell'installazione [installation.name]"
+                            }
+                        },
+                        {
+                            "body": {
+                                "en": "DUM [dum.serial] reached 10000 work hours since last maintenance of the pump",
+                                "it": "Il DUM [dum.serial] ha raggiunto le 10000 ore di lavoro dall'ultima manutenzione della pompa"
+                            },
+                            "delta-threshold": 10000,
+                            "recipients": [
+                                "CUSTOMER",
+                                "INSTALLER"
+                            ],
+                            "subject": {
+                                "en": "Maintenance warning for [dum.serial] in installation  [installation.name]",
+                                "it": "Avviso manutenzione per [dum.serial] dell'installazione [installation.name]"
+                            }
+                        },
+                        {
+                            "body": {
+                                "en": "DUM [dum.serial] exceeded 10000 work hours of pump since last maintenance",
+                                "it": "Il DUM [dum.serial] ha superato le 10000 ore di lavoro dall'ultima manutenzione della pompa"
+                            },
+                            "delta-threshold": 11000,
+                            "recipients": [
+                                "CUSTOMER",
+                                "INSTALLER"
+                            ],
+                            "subject": {
+                                "en": "Maintenance ALERT for [dum.serial] in installation  [installation.name]",
+                                "it": "Attenzione manutenzione necessaria per [dum.serial] dell'installazione [installation.name]"
+                            }
+                        }
+                    ],
+                    "code": "MANUT10000HPOMPA",
+                    "parameter": "RunPumpHours",
+                    "description": {
+                        "en": "Scheduled maintenance after 10000 work hours of pump",
+                        "it": "Manutenzione a tempo dopo 10000 ore di lavoro della pompa"
+                    }
+                }
+            ],
+            "params": [
+                {
+                    "group": "Version",
+                    "name": "LvFwVersion",
+                    "family": "gear",
+                    "unit": "",
+                    "log": [],
+                    "groupPos": 20,
+                    "type": "label",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Version",
+                    "name": "KernelVersion",
+                    "family": "gear",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "unit": "",
+                    "log": [],
+                    "groupPos": 30,
+                    "type": "label",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Version",
+                    "name": "HvFwVersion",
+                    "family": "gear",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "unit": "",
+                    "log": [],
+                    "groupPos": 40,
+                    "type": "label",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Version",
+                    "name": "ProductType",
+                    "family": "gear",
+                    "values": [
+                        [
+                            null,
+                            "ERROR",
+                            "error"
+                        ],
+                        [
+                            1,
+                            "NO_PRODUCT",
+                            "error"
+                        ],
+                        [
+                            65,
+                            "e.sybox 1.5 kW NP"
+                        ]
+                    ],
+                    "log": [],
+                    "groupPos": 10,
+                    "type": "enum",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Version",
+                    "name": "HvBoardId",
+                    "family": "gear",
+                    "unit": "",
+                    "log": [],
+                    "groupPos": 60,
+                    "type": "label",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Version",
+                    "name": "PanelBoardId",
+                    "family": "gear",
+                    "unit": "",
+                    "log": [],
+                    "groupPos": 70,
+                    "type": "label",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Setpoint",
+                    "name": "SP_SetpointPressureBar",
+                    "family": "tachimeter",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "weight": 0.1,
+                    "unit": "bar",
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 10,
+                    "groupApp": "Setpoint",
+                    "type": "measure",
+                    "change": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "groupPos": 20,
+                    "extends": "SP_SetpointPressureBar",
+                    "name": "P1_Aux1SetpointBar"
+                },
+                {
+                    "groupPos": 30,
+                    "extends": "SP_SetpointPressureBar",
+                    "name": "P2_Aux2SetpointBar"
+                },
+                {
+                    "groupPos": 40,
+                    "extends": "SP_SetpointPressureBar",
+                    "name": "P3_Aux3SetpointBar"
+                },
+                {
+                    "groupPos": 50,
+                    "extends": "SP_SetpointPressureBar",
+                    "name": "P4_Aux4SetpointBar"
+                },
+                {
+                    "groupPos": 11,
+                    "weight": 1,
+                    "extends": "SP_SetpointPressureBar",
+                    "name": "SP_SetpointPressurePsi",
+                    "unit": "psi"
+                },
+                {
+                    "groupPos": 21,
+                    "extends": "SP_SetpointPressurePsi",
+                    "name": "P1_Aux1SetpointPsi"
+                },
+                {
+                    "groupPos": 31,
+                    "extends": "SP_SetpointPressurePsi",
+                    "name": "P2_Aux2SetpointPsi"
+                },
+                {
+                    "groupPos": 41,
+                    "extends": "SP_SetpointPressurePsi",
+                    "name": "P3_Aux3SetpointPsi"
+                },
+                {
+                    "groupPos": 51,
+                    "extends": "SP_SetpointPressurePsi",
+                    "name": "P4_Aux4SetpointPsi"
+                },
+                {
+                    "group": "Setpoint",
+                    "name": "RP_PressureFallToRestartBar",
+                    "family": "graph",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "warn_hi": 51,
+                    "weight": 0.1,
+                    "unit": "bar",
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 15,
+                    "warn_low": 0,
+                    "type": "measure",
+                    "change": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "name": "RP_PressureFallToRestartPsi",
+                    "weight": 1,
+                    "warn_hi": 740,
+                    "extends": "RP_PressureFallToRestartBar",
+                    "groupPos": 16,
+                    "unit": "psi"
+                },
+                {
+                    "group": "Group Status",
+                    "name": "GroupPower",
+                    "family": "power",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "weight": 0.001,
+                    "unit": "kW",
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 10,
+                    "groupApp": "Group Status",
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Group Status",
+                    "name": "GroupFlowLiter",
+                    "family": "flow",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "weight": 0.1,
+                    "unit": "l/min",
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 20,
+                    "groupApp": "Group Status",
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "groupPos": 25,
+                    "weight": 0.1,
+                    "extends": "GroupFlowLiter",
+                    "name": "GroupFlowGall",
+                    "unit": "gall/min"
+                },
+                {
+                    "group": "Group Status",
+                    "name": "RunningPumpsNumber",
+                    "family": "tachimeter",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "weight": 1,
+                    "unit": "",
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 30,
+                    "groupApp": "Group Status",
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Group Status",
+                    "name": "FaultPumpsNumber",
+                    "family": "warning",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "warn_hi": 1,
+                    "weight": 1,
+                    "unit": "",
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 40,
+                    "groupApp": "Group Status",
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Group Status",
+                    "name": "InverterPresentNumber",
+                    "family": "tachimeter",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "weight": 1,
+                    "unit": "",
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 50,
+                    "groupApp": "Group Status",
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Group Status",
+                    "name": "ActiveInverterNumber",
+                    "family": "tachimeter",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "unit": "",
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 60,
+                    "groupApp": "Group Status",
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Group Status",
+                    "name": "ContemporaryInverterNumber",
+                    "family": "tachimeter",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "unit": "",
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 70,
+                    "groupApp": "Group Status",
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Installer",
+                    "name": "EK_LowPressEnable",
+                    "family": "gear",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "unit": "",
+                    "values": [
+                        [
+                            null,
+                            "Disabled"
+                        ],
+                        [
+                            1,
+                            "Automatic"
+                        ],
+                        [
+                            2,
+                            "Manual"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 10,
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Installer",
+                    "name": "PK_LowPressureThresholdBar",
+                    "family": "graph",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "weight": 0.1,
+                    "unit": "bar",
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 20,
+                    "type": "measure",
+                    "change": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "groupPos": 30,
+                    "weight": 1,
+                    "extends": "PK_LowPressureThresholdBar",
+                    "name": "PK_LowPressureThresholdPsi",
+                    "unit": "psi"
+                },
+                {
+                    "group": "Installer",
+                    "name": "OD_PlantType",
+                    "family": "gear",
+                    "unit": "",
+                    "values": [
+                        [
+                            1,
+                            "Rigid"
+                        ],
+                        [
+                            2,
+                            "Elastic"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 50,
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Installer",
+                    "name": "AD_AddressConfig",
+                    "family": "gear",
+                    "unit": "",
+                    "values": [
+                        [
+                            1,
+                            "Automatic"
+                        ],
+                        [
+                            2,
+                            "1"
+                        ],
+                        [
+                            3,
+                            "2"
+                        ],
+                        [
+                            4,
+                            "3"
+                        ],
+                        [
+                            5,
+                            "4"
+                        ]
+                    ],
+                    "log": [],
+                    "groupPos": 60,
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Installer",
+                    "name": "PR_RemotePressureSensor",
+                    "family": "gear",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "unit": "",
+                    "values": [
+                        [
+                            null,
+                            "Disabled"
+                        ],
+                        [
+                            1,
+                            "DAB PRS 2516"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 70,
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Installer",
+                    "name": "MS_MeasureSystem",
+                    "family": "gear",
+                    "unit": "",
+                    "values": [
+                        [
+                            null,
+                            "International"
+                        ],
+                        [
+                            1,
+                            "Anglo-American"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 80,
+                    "groupApp": "Advanced",
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Installer",
+                    "name": "LA_Language",
+                    "family": "gear",
+                    "unit": "",
+                    "values": [
+                        [
+                            0,
+                            "Italian"
+                        ],
+                        [
+                            1,
+                            "English"
+                        ],
+                        [
+                            2,
+                            "French"
+                        ],
+                        [
+                            3,
+                            "German"
+                        ],
+                        [
+                            4,
+                            "Spanish"
+                        ],
+                        [
+                            5,
+                            "Dutch"
+                        ],
+                        [
+                            6,
+                            "Swedish"
+                        ],
+                        [
+                            7,
+                            "Turkish"
+                        ],
+                        [
+                            8,
+                            "Slovenian"
+                        ],
+                        [
+                            9,
+                            "Romanian"
+                        ],
+                        [
+                            10,
+                            "Czech"
+                        ],
+                        [
+                            11,
+                            "Polish"
+                        ],
+                        [
+                            12,
+                            "Russian"
+                        ],
+                        [
+                            13,
+                            "Thai"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 90,
+                    "groupApp": "Advanced",
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Technical Assistance",
+                    "name": "TB_DryRunDetectTime",
+                    "family": "time",
+                    "unit": "s",
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 10,
+                    "groupApp": "Advanced",
+                    "type": "measure",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Technical Assistance",
+                    "name": "T1_LowPressureDelay",
+                    "family": "time",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "unit": "s",
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 20,
+                    "type": "measure",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Technical Assistance",
+                    "name": "T2_SwitchOffDelay",
+                    "family": "onoff",
+                    "unit": "s",
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 30,
+                    "type": "measure",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Technical Assistance",
+                    "name": "GP_ProportionalGainRigidPlant",
+                    "family": "gear",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "unit": "",
+                    "values": [
+                        [
+                            null,
+                            "0.0"
+                        ],
+                        [
+                            1,
+                            "0.1"
+                        ],
+                        [
+                            2,
+                            "0.2"
+                        ],
+                        [
+                            3,
+                            "0.3"
+                        ],
+                        [
+                            4,
+                            "0.4"
+                        ],
+                        [
+                            5,
+                            "0.5"
+                        ],
+                        [
+                            6,
+                            "0.6"
+                        ],
+                        [
+                            7,
+                            "0.7"
+                        ],
+                        [
+                            8,
+                            "0.8"
+                        ],
+                        [
+                            9,
+                            "0.9"
+                        ],
+                        [
+                            10,
+                            "1.0"
+                        ],
+                        [
+                            11,
+                            "1.2"
+                        ],
+                        [
+                            12,
+                            "1.4"
+                        ],
+                        [
+                            13,
+                            "1.6"
+                        ],
+                        [
+                            14,
+                            "1.8"
+                        ],
+                        [
+                            15,
+                            "2.0"
+                        ],
+                        [
+                            16,
+                            "2.5"
+                        ],
+                        [
+                            17,
+                            "3.0"
+                        ],
+                        [
+                            18,
+                            "3.5"
+                        ],
+                        [
+                            19,
+                            "4.0"
+                        ],
+                        [
+                            20,
+                            "4.5"
+                        ],
+                        [
+                            21,
+                            "5.0"
+                        ],
+                        [
+                            22,
+                            "6.0"
+                        ],
+                        [
+                            23,
+                            "7.0"
+                        ],
+                        [
+                            24,
+                            "8.0"
+                        ],
+                        [
+                            25,
+                            "9.0"
+                        ],
+                        [
+                            26,
+                            "10.0"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 40,
+                    "groupApp": "Advanced",
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "groupPos": 50,
+                    "extends": "GP_ProportionalGainRigidPlant",
+                    "name": "GI_IntegralGainRigidPlant"
+                },
+                {
+                    "groupPos": 60,
+                    "extends": "GP_ProportionalGainRigidPlant",
+                    "name": "GP_ProportionalGainElasticPlant"
+                },
+                {
+                    "groupPos": 70,
+                    "extends": "GP_ProportionalGainRigidPlant",
+                    "name": "GI_IntegralGainElasticPlant"
+                },
+                {
+                    "group": "Technical Assistance",
+                    "name": "RM_MaximumSpeed",
+                    "family": "tachimeter",
+                    "weight": 1,
+                    "unit": "rpm",
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 80,
+                    "groupApp": "Advanced",
+                    "type": "measure",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Technical Assistance",
+                    "name": "NA_ActiveInverters",
+                    "family": "gear",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "unit": "",
+                    "values": [
+                        [
+                            null,
+                            "N"
+                        ],
+                        [
+                            1,
+                            "1"
+                        ],
+                        [
+                            2,
+                            "2"
+                        ],
+                        [
+                            3,
+                            "3"
+                        ],
+                        [
+                            4,
+                            "4"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 140,
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Technical Assistance",
+                    "name": "NC_ActiveContemporaryInverters",
+                    "family": "onoff",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "unit": "",
+                    "values": [
+                        [
+                            null,
+                            "NA"
+                        ],
+                        [
+                            1,
+                            "1"
+                        ],
+                        [
+                            2,
+                            "2"
+                        ],
+                        [
+                            3,
+                            "3"
+                        ],
+                        [
+                            4,
+                            "4"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 150,
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Technical Assistance",
+                    "name": "IC_InverterConfig",
+                    "family": "gear",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "unit": "",
+                    "values": [
+                        [
+                            1,
+                            "Auto"
+                        ],
+                        [
+                            2,
+                            "Reserve (pref.)"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 160,
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "widget": "time",
+                    "group": "Technical Assistance",
+                    "name": "ET_ExchangeTime",
+                    "family": "time",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "unit": "s",
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 170,
+                    "type": "measure",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Technical Assistance",
+                    "name": "AE_AntiLock",
+                    "family": "gear",
+                    "unit": "",
+                    "values": [
+                        [
+                            null,
+                            "Disabled"
+                        ],
+                        [
+                            1,
+                            "Enabled"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 180,
+                    "groupApp": "Advanced",
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "groupPos": 190,
+                    "extends": "AE_AntiLock",
+                    "name": "AF_AntiFreeze"
+                },
+                {
+                    "values": [
+                        [
+                            null,
+                            "Disabled"
+                        ],
+                        [
+                            1,
+                            "Enabled"
+                        ],
+                        [
+                            2,
+                            "Smart"
+                        ]
+                    ],
+                    "groupPos": 200,
+                    "extends": "AE_AntiLock",
+                    "name": "AY_AntiCycling"
+                },
+                {
+                    "group": "Technical Assistance",
+                    "name": "I1_Input1Function",
+                    "family": "signal",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "values": [
+                        [
+                            null,
+                            "Disabled"
+                        ],
+                        [
+                            1,
+                            "Float NO"
+                        ],
+                        [
+                            2,
+                            "Float NC"
+                        ],
+                        [
+                            3,
+                            "P aux NO"
+                        ],
+                        [
+                            4,
+                            "P aux NC"
+                        ],
+                        [
+                            5,
+                            "Enable NO"
+                        ],
+                        [
+                            6,
+                            "Enable NC"
+                        ],
+                        [
+                            7,
+                            "En. NO, reset"
+                        ],
+                        [
+                            8,
+                            "En. NC, reset"
+                        ],
+                        [
+                            9,
+                            "Reset fault"
+                        ],
+                        [
+                            10,
+                            "Low press. NO"
+                        ],
+                        [
+                            11,
+                            "Low press. NC"
+                        ],
+                        [
+                            12,
+                            "Low pr. NO MR"
+                        ],
+                        [
+                            13,
+                            "Low pr. NC MR"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 210,
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "groupPos": 220,
+                    "extends": "I1_Input1Function",
+                    "name": "I2_Input2Function"
+                },
+                {
+                    "groupPos": 230,
+                    "extends": "I1_Input1Function",
+                    "name": "I3_Input3Function"
+                },
+                {
+                    "groupPos": 240,
+                    "extends": "I1_Input1Function",
+                    "name": "I4_Input4Function"
+                },
+                {
+                    "group": "Technical Assistance",
+                    "name": "O1_Output1Function",
+                    "family": "signal",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "unit": "",
+                    "values": [
+                        [
+                            null,
+                            "Disabled NO"
+                        ],
+                        [
+                            1,
+                            "Disabled NC"
+                        ],
+                        [
+                            2,
+                            "Fault NO"
+                        ],
+                        [
+                            3,
+                            "Fault NC"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 250,
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Technical Assistance",
+                    "name": "O2_Output2Function",
+                    "family": "signal",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "values": [
+                        [
+                            null,
+                            "Disabled NO"
+                        ],
+                        [
+                            1,
+                            "Disabled NC"
+                        ],
+                        [
+                            2,
+                            "Run NO"
+                        ],
+                        [
+                            3,
+                            "Run NC"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 260,
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Technical Assistance",
+                    "name": "PW_ModifyPassword",
+                    "family": "tachimeter",
+                    "unit": "",
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 280,
+                    "type": "measure",
+                    "change": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "HO_PowerOnHours",
+                    "family": "gear",
+                    "unit": "h",
+                    "log": [],
+                    "groupPos": 100,
+                    "groupApp": "Consumption",
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "groupPos": 110,
+                    "extends": "HO_PowerOnHours",
+                    "name": "HO_PumpRunHours"
+                },
+                {
+                    "group": "Status",
+                    "name": "RS_RotatingSpeed",
+                    "family": "tachimeter",
+                    "weight": 1,
+                    "unit": "rpm",
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 60,
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "VP_PressureBar",
+                    "family": "tachimeter",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "weight": 0.1,
+                    "unit": "bar",
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "groupPos": 30,
+                    "groupApp": "Data",
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "groupPos": 31,
+                    "weight": 1,
+                    "extends": "VP_PressureBar",
+                    "name": "VP_PressurePsi",
+                    "unit": "psi"
+                },
+                {
+                    "group": "Status",
+                    "name": "C1_PumpPhaseCurrent",
+                    "family": "tachimeter",
+                    "weight": 0.1,
+                    "unit": "A",
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 70,
+                    "groupApp": "Data",
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "PO_OutputPower",
+                    "family": "tachimeter",
+                    "weight": 0.001,
+                    "unit": "kW",
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 40,
+                    "groupApp": "Data",
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "VF_FlowLiter",
+                    "family": "flow",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "weight": 0.1,
+                    "unit": "l/min",
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 50,
+                    "groupApp": "Data",
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "groupPos": 51,
+                    "weight": 0.1,
+                    "extends": "VF_FlowLiter",
+                    "name": "VF_FlowGall",
+                    "unit": "gall/min"
+                },
+                {
+                    "groupPos": 52,
+                    "weight": 0.001,
+                    "extends": "VF_FlowLiter",
+                    "name": "FCt_Total_Delivered_Flow_mc",
+                    "unit": "mc"
+                },
+                {
+                    "groupPos": 53,
+                    "weight": 1,
+                    "extends": "VF_FlowGall",
+                    "name": "FCt_Total_Delivered_Flow_Gall",
+                    "unit": "gall"
+                },
+                {
+                    "groupPos": 54,
+                    "weight": 0.001,
+                    "extends": "VF_FlowLiter",
+                    "name": "FCp_Partial_Delivered_Flow_mc",
+                    "unit": "mc"
+                },
+                {
+                    "groupPos": 55,
+                    "weight": 1,
+                    "extends": "VF_FlowGall",
+                    "name": "FCp_Partial_Delivered_Flow_Gall",
+                    "unit": "gall"
+                },
+                {
+                    "group": "Status",
+                    "name": "TE_HeatsinkTemperatureC",
+                    "family": "pump_temp",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "warn_hi": 80,
+                    "weight": 1,
+                    "unit": "C",
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 80,
+                    "groupApp": "Advanced",
+                    "warn_low": -1,
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "name": "TE_HeatsinkTemperatureF",
+                    "weight": 1,
+                    "warn_hi": 176,
+                    "extends": "TE_HeatsinkTemperatureC",
+                    "groupPos": 81,
+                    "unit": "F",
+                    "warn_low": 30
+                },
+                {
+                    "group": "Status",
+                    "name": "PKm_SuctionPressureBar",
+                    "family": "graph",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "weight": 0.1,
+                    "unit": "bar",
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 85,
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "groupPos": 86,
+                    "weight": 1,
+                    "extends": "PKm_SuctionPressureBar",
+                    "name": "PKm_SuctionPressurePsi",
+                    "unit": "psi"
+                },
+                {
+                    "group": "Status",
+                    "name": "PumpStatus",
+                    "family": "onoff",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "values": [
+                        [
+                            0,
+                            "StandBy"
+                        ],
+                        [
+                            1,
+                            "Go",
+                            "alert"
+                        ],
+                        [
+                            2,
+                            "Fault",
+                            "error"
+                        ],
+                        [
+                            3,
+                            "Warning",
+                            "warning"
+                        ],
+                        [
+                            4,
+                            "Not Configurated",
+                            "error"
+                        ],
+                        [
+                            5,
+                            "Function F1",
+                            "warning"
+                        ],
+                        [
+                            6,
+                            "Function F3",
+                            "warning"
+                        ],
+                        [
+                            7,
+                            "Function F4",
+                            "warning"
+                        ],
+                        [
+                            8,
+                            "Manual Disable",
+                            "warning"
+                        ],
+                        [
+                            9,
+                            "Startup",
+                            "warning"
+                        ],
+                        [
+                            10,
+                            "Stop manual menu",
+                            "warning"
+                        ],
+                        [
+                            11,
+                            "Go manual menu",
+                            "warning"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 10,
+                    "groupApp": "Status",
+                    "type": "enum",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "SystemStatus",
+                    "family": "warning",
+                    "values": [
+                        [
+                            0,
+                            "System Ok"
+                        ],
+                        [
+                            1,
+                            "InternalErrorE0",
+                            "error"
+                        ],
+                        [
+                            2,
+                            "InternalErrorE1",
+                            "error"
+                        ],
+                        [
+                            3,
+                            "InternalErrorE2",
+                            "error"
+                        ],
+                        [
+                            4,
+                            "InternalErrorE3",
+                            "error"
+                        ],
+                        [
+                            5,
+                            "InternalErrorE4",
+                            "error"
+                        ],
+                        [
+                            6,
+                            "InternalErrorE5",
+                            "error"
+                        ],
+                        [
+                            7,
+                            "InternalErrorE6",
+                            "error"
+                        ],
+                        [
+                            8,
+                            "InternalErrorE7",
+                            "error"
+                        ],
+                        [
+                            9,
+                            "InternalErrorE8",
+                            "error"
+                        ],
+                        [
+                            10,
+                            "InternalErrorE9",
+                            "error"
+                        ],
+                        [
+                            11,
+                            "InternalErrorE10",
+                            "error"
+                        ],
+                        [
+                            12,
+                            "InternalErrorE11",
+                            "error"
+                        ],
+                        [
+                            13,
+                            "InternalErrorE12",
+                            "error"
+                        ],
+                        [
+                            14,
+                            "InternalErrorE13",
+                            "error"
+                        ],
+                        [
+                            15,
+                            "InternalErrorE14",
+                            "error"
+                        ],
+                        [
+                            16,
+                            "InternalErrorE15",
+                            "error"
+                        ],
+                        [
+                            17,
+                            "InternalErrorE16",
+                            "error"
+                        ],
+                        [
+                            18,
+                            "ShortCircuitSC",
+                            "error"
+                        ],
+                        [
+                            19,
+                            "ShortCircuitEOC",
+                            "error"
+                        ],
+                        [
+                            20,
+                            "InternalErrorE17",
+                            "error"
+                        ],
+                        [
+                            21,
+                            "InternalErrorE18",
+                            "error"
+                        ],
+                        [
+                            22,
+                            "InternalErrorE19",
+                            "error"
+                        ],
+                        [
+                            23,
+                            "InternalErrorE20",
+                            "error"
+                        ],
+                        [
+                            24,
+                            "InternalErrorE21",
+                            "error"
+                        ],
+                        [
+                            25,
+                            "VoltageErrorVD",
+                            "error"
+                        ],
+                        [
+                            26,
+                            "InternalErrorPD",
+                            "error"
+                        ],
+                        [
+                            27,
+                            "VoltageErrorV0",
+                            "error"
+                        ],
+                        [
+                            28,
+                            "VoltageErrorV1",
+                            "error"
+                        ],
+                        [
+                            29,
+                            "VoltageErrorV2",
+                            "error"
+                        ],
+                        [
+                            30,
+                            "VoltageErrorV3",
+                            "error"
+                        ],
+                        [
+                            31,
+                            "VoltageErrorV4",
+                            "error"
+                        ],
+                        [
+                            32,
+                            "OverloadSensorV5",
+                            "error"
+                        ],
+                        [
+                            33,
+                            "OverloadInputV6",
+                            "error"
+                        ],
+                        [
+                            34,
+                            "ProtocolErrorPR",
+                            "error"
+                        ],
+                        [
+                            35,
+                            "OverTemperatureOS",
+                            "warning"
+                        ],
+                        [
+                            36,
+                            "OverTemperatureOT",
+                            "warning"
+                        ],
+                        [
+                            37,
+                            "OverTemperatureOB",
+                            "warning"
+                        ],
+                        [
+                            38,
+                            "OverTemperatureCO",
+                            "warning"
+                        ],
+                        [
+                            39,
+                            "VoltagePB",
+                            "warning"
+                        ],
+                        [
+                            40,
+                            "LowVoltageLP",
+                            "warning"
+                        ],
+                        [
+                            41,
+                            "HighVoltageHP",
+                            "warning"
+                        ],
+                        [
+                            42,
+                            "OverCurrentOF",
+                            "warning"
+                        ],
+                        [
+                            43,
+                            "OverCurrentOC",
+                            "warning"
+                        ],
+                        [
+                            44,
+                            "OverPowerOP",
+                            "warning"
+                        ],
+                        [
+                            45,
+                            "NoError",
+                            "disabled"
+                        ],
+                        [
+                            46,
+                            "HotPumpPH",
+                            "warning"
+                        ],
+                        [
+                            47,
+                            "NoError",
+                            "disabled"
+                        ],
+                        [
+                            48,
+                            "NoError",
+                            "disabled"
+                        ],
+                        [
+                            49,
+                            "DryRunBL",
+                            "warning"
+                        ],
+                        [
+                            50,
+                            "PressureSensorBP1",
+                            "error"
+                        ],
+                        [
+                            51,
+                            "PressureSensorBP2",
+                            "error"
+                        ],
+                        [
+                            52,
+                            "PressureSensorBP3",
+                            "error"
+                        ],
+                        [
+                            53,
+                            "NotConnectedPump",
+                            "warning"
+                        ],
+                        [
+                            54,
+                            "FluidHotHL",
+                            "warning"
+                        ],
+                        [
+                            55,
+                            "OverPressureOP",
+                            "warning"
+                        ],
+                        [
+                            56,
+                            "LossLK",
+                            "warning"
+                        ],
+                        [
+                            57,
+                            "AnticyclingEY",
+                            "warning"
+                        ],
+                        [
+                            58,
+                            "MaximumTimeTW",
+                            "warning"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 20,
+                    "groupApp": "Status",
+                    "type": "enum",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "PressureTarget",
+                    "family": "tachimeter",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "values": [
+                        [
+                            null,
+                            "Setpoint SP"
+                        ],
+                        [
+                            1,
+                            "Setpoint P1"
+                        ],
+                        [
+                            2,
+                            "Setpoint P2"
+                        ],
+                        [
+                            3,
+                            "Setpoint P3"
+                        ],
+                        [
+                            4,
+                            "Setpoint P4"
+                        ],
+                        [
+                            5,
+                            "Power Shower"
+                        ],
+                        [
+                            6,
+                            "Sleep Mode"
+                        ],
+                        [
+                            7,
+                            "Setpoint error2",
+                            "error"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 25,
+                    "type": "enum",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "RemotePressureSensorStatus",
+                    "family": "signal",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "values": [
+                        [
+                            null,
+                            "Inactive"
+                        ],
+                        [
+                            1,
+                            "Active"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 27,
+                    "type": "enum",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "LastErrorOccurrency",
+                    "family": "warning",
+                    "unit": "",
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 130,
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "LastErrorTimePowerOn",
+                    "family": "gear",
+                    "unit": "h",
+                    "log": [],
+                    "groupPos": 140,
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Status",
+                    "name": "StartNumber",
+                    "family": "gear",
+                    "log": [],
+                    "groupPos": 140,
+                    "groupApp": "Advanced",
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Debug",
+                    "name": "MainLoopTime",
+                    "family": "gear",
+                    "weight": 0.1,
+                    "unit": "ms",
+                    "log": [
+                        "R&D"
+                    ],
+                    "groupPos": 400,
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "R&D"
+                    ]
+                },
+                {
+                    "groupPos": 410,
+                    "extends": "MainLoopTime",
+                    "name": "MainLoopMinTime"
+                },
+                {
+                    "groupPos": 420,
+                    "extends": "MainLoopTime",
+                    "name": "MainLoopMaxTime"
+                },
+                {
+                    "groupPos": 430,
+                    "extends": "MainLoopTime",
+                    "name": "5msHandlerTime"
+                },
+                {
+                    "groupPos": 440,
+                    "extends": "5msHandlerTime",
+                    "name": "5msHandlerMaxTime"
+                },
+                {
+                    "groupPos": 450,
+                    "extends": "MainLoopTime",
+                    "name": "RamUsed",
+                    "unit": "%"
+                },
+                {
+                    "groupPos": 460,
+                    "extends": "MainLoopTime",
+                    "name": "RamUsedMax",
+                    "unit": "%"
+                },
+                {
+                    "group": "Errors",
+                    "name": "Error1",
+                    "family": "warning",
+                    "widget-modifier": {
+                        "0": "hidden",
+                        "d": "disabled"
+                    },
+                    "inspect": [
+                        "R&D"
+                    ],
+                    "values": [
+                        [
+                            null,
+                            "NoError"
+                        ],
+                        [
+                            1,
+                            "InternalErrorE0",
+                            "error"
+                        ],
+                        [
+                            2,
+                            "InternalErrorE1",
+                            "error"
+                        ],
+                        [
+                            3,
+                            "InternalErrorE2",
+                            "error"
+                        ],
+                        [
+                            4,
+                            "InternalErrorE3",
+                            "error"
+                        ],
+                        [
+                            5,
+                            "InternalErrorE4",
+                            "error"
+                        ],
+                        [
+                            6,
+                            "InternalErrorE5",
+                            "error"
+                        ],
+                        [
+                            7,
+                            "InternalErrorE6",
+                            "error"
+                        ],
+                        [
+                            8,
+                            "InternalErrorE7",
+                            "error"
+                        ],
+                        [
+                            9,
+                            "InternalErrorE8",
+                            "error"
+                        ],
+                        [
+                            10,
+                            "InternalErrorE9",
+                            "error"
+                        ],
+                        [
+                            11,
+                            "InternalErrorE10",
+                            "error"
+                        ],
+                        [
+                            12,
+                            "InternalErrorE11",
+                            "error"
+                        ],
+                        [
+                            13,
+                            "InternalErrorE12",
+                            "error"
+                        ],
+                        [
+                            14,
+                            "InternalErrorE13",
+                            "error"
+                        ],
+                        [
+                            15,
+                            "InternalErrorE14",
+                            "error"
+                        ],
+                        [
+                            16,
+                            "InternalErrorE15",
+                            "error"
+                        ],
+                        [
+                            17,
+                            "InternalErrorE16",
+                            "error"
+                        ],
+                        [
+                            18,
+                            "ShortCircuitSC",
+                            "error"
+                        ],
+                        [
+                            19,
+                            "ShortCircuitEOC",
+                            "error"
+                        ],
+                        [
+                            20,
+                            "InternalErrorE17",
+                            "error"
+                        ],
+                        [
+                            21,
+                            "InternalErrorE18",
+                            "error"
+                        ],
+                        [
+                            22,
+                            "InternalErrorE19",
+                            "error"
+                        ],
+                        [
+                            23,
+                            "InternalErrorE20",
+                            "error"
+                        ],
+                        [
+                            24,
+                            "InternalErrorE21",
+                            "error"
+                        ],
+                        [
+                            25,
+                            "VoltageErrorVD",
+                            "error"
+                        ],
+                        [
+                            26,
+                            "InternalErrorPD",
+                            "error"
+                        ],
+                        [
+                            27,
+                            "VoltageErrorV0",
+                            "error"
+                        ],
+                        [
+                            28,
+                            "VoltageErrorV1",
+                            "error"
+                        ],
+                        [
+                            29,
+                            "VoltageErrorV2",
+                            "error"
+                        ],
+                        [
+                            30,
+                            "VoltageErrorV3",
+                            "error"
+                        ],
+                        [
+                            31,
+                            "VoltageErrorV4",
+                            "error"
+                        ],
+                        [
+                            32,
+                            "OverloadSensorV5",
+                            "error"
+                        ],
+                        [
+                            33,
+                            "OverloadInputV6",
+                            "error"
+                        ],
+                        [
+                            34,
+                            "ProtocolErrorPR",
+                            "error"
+                        ],
+                        [
+                            35,
+                            "OverTemperatureOS",
+                            "warning"
+                        ],
+                        [
+                            36,
+                            "OverTemperatureOT",
+                            "warning"
+                        ],
+                        [
+                            37,
+                            "OverTemperatureOB",
+                            "warning"
+                        ],
+                        [
+                            38,
+                            "OverTemperatureCO",
+                            "warning"
+                        ],
+                        [
+                            39,
+                            "VoltagePB",
+                            "warning"
+                        ],
+                        [
+                            40,
+                            "LowVoltageLP",
+                            "warning"
+                        ],
+                        [
+                            41,
+                            "HighVoltageHP",
+                            "warning"
+                        ],
+                        [
+                            42,
+                            "OverCurrentOF",
+                            "warning"
+                        ],
+                        [
+                            43,
+                            "OverCurrentOC",
+                            "warning"
+                        ],
+                        [
+                            44,
+                            "OverPowerOP",
+                            "warning"
+                        ],
+                        [
+                            45,
+                            "NoError",
+                            "disabled"
+                        ],
+                        [
+                            46,
+                            "HotPumpPH",
+                            "warning"
+                        ],
+                        [
+                            47,
+                            "NoError",
+                            "disabled"
+                        ],
+                        [
+                            48,
+                            "NoError",
+                            "disabled"
+                        ],
+                        [
+                            49,
+                            "DryRunBL",
+                            "warning"
+                        ],
+                        [
+                            50,
+                            "PressureSensorBP1",
+                            "error"
+                        ],
+                        [
+                            51,
+                            "PressureSensorBP2",
+                            "error"
+                        ],
+                        [
+                            52,
+                            "PressureSensorBP3",
+                            "error"
+                        ],
+                        [
+                            53,
+                            "NotConnectedPump",
+                            "warning"
+                        ],
+                        [
+                            54,
+                            "FluidHotHL",
+                            "warning"
+                        ],
+                        [
+                            55,
+                            "OverPressureOP",
+                            "warning"
+                        ],
+                        [
+                            56,
+                            "LossLK",
+                            "warning"
+                        ],
+                        [
+                            57,
+                            "AnticyclingEY",
+                            "warning"
+                        ],
+                        [
+                            58,
+                            "MaximumTimeTW",
+                            "warning"
+                        ]
+                    ],
+                    "log": [],
+                    "report": [
+                        "R&D"
+                    ],
+                    "groupPos": 640,
+                    "groupApp": "Errors",
+                    "type": "enum",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "groupPos": 8,
+                    "extends": "Error1",
+                    "name": "LatestError"
+                },
+                {
+                    "groupPos": 10,
+                    "inspect": [
+                        "R&D"
+                    ],
+                    "extends": "Error1",
+                    "name": "Error64"
+                },
+                {
+                    "groupPos": 20,
+                    "extends": "Error1",
+                    "name": "Error63"
+                },
+                {
+                    "groupPos": 30,
+                    "extends": "Error1",
+                    "name": "Error62"
+                },
+                {
+                    "groupPos": 40,
+                    "extends": "Error1",
+                    "name": "Error61"
+                },
+                {
+                    "groupPos": 50,
+                    "extends": "Error1",
+                    "name": "Error60"
+                },
+                {
+                    "groupPos": 60,
+                    "extends": "Error1",
+                    "name": "Error59"
+                },
+                {
+                    "groupPos": 70,
+                    "extends": "Error1",
+                    "name": "Error58"
+                },
+                {
+                    "groupPos": 80,
+                    "extends": "Error1",
+                    "name": "Error57"
+                },
+                {
+                    "groupPos": 90,
+                    "extends": "Error1",
+                    "name": "Error56"
+                },
+                {
+                    "groupPos": 100,
+                    "extends": "Error1",
+                    "name": "Error55"
+                },
+                {
+                    "groupPos": 110,
+                    "extends": "Error1",
+                    "name": "Error54"
+                },
+                {
+                    "groupPos": 120,
+                    "extends": "Error1",
+                    "name": "Error53"
+                },
+                {
+                    "groupPos": 130,
+                    "extends": "Error1",
+                    "name": "Error52"
+                },
+                {
+                    "groupPos": 140,
+                    "extends": "Error1",
+                    "name": "Error51"
+                },
+                {
+                    "groupPos": 150,
+                    "extends": "Error1",
+                    "name": "Error50"
+                },
+                {
+                    "groupPos": 160,
+                    "extends": "Error1",
+                    "name": "Error49"
+                },
+                {
+                    "groupPos": 170,
+                    "extends": "Error1",
+                    "name": "Error48"
+                },
+                {
+                    "groupPos": 180,
+                    "extends": "Error1",
+                    "name": "Error47"
+                },
+                {
+                    "groupPos": 190,
+                    "extends": "Error1",
+                    "name": "Error46"
+                },
+                {
+                    "groupPos": 200,
+                    "extends": "Error1",
+                    "name": "Error45"
+                },
+                {
+                    "groupPos": 210,
+                    "extends": "Error1",
+                    "name": "Error44"
+                },
+                {
+                    "groupPos": 220,
+                    "extends": "Error1",
+                    "name": "Error43"
+                },
+                {
+                    "groupPos": 230,
+                    "extends": "Error1",
+                    "name": "Error42"
+                },
+                {
+                    "groupPos": 240,
+                    "extends": "Error1",
+                    "name": "Error41"
+                },
+                {
+                    "groupPos": 250,
+                    "extends": "Error1",
+                    "name": "Error40"
+                },
+                {
+                    "groupPos": 260,
+                    "extends": "Error1",
+                    "name": "Error39"
+                },
+                {
+                    "groupPos": 270,
+                    "extends": "Error1",
+                    "name": "Error38"
+                },
+                {
+                    "groupPos": 280,
+                    "extends": "Error1",
+                    "name": "Error37"
+                },
+                {
+                    "groupPos": 290,
+                    "extends": "Error1",
+                    "name": "Error36"
+                },
+                {
+                    "groupPos": 300,
+                    "extends": "Error1",
+                    "name": "Error35"
+                },
+                {
+                    "groupPos": 310,
+                    "extends": "Error1",
+                    "name": "Error34"
+                },
+                {
+                    "groupPos": 320,
+                    "extends": "Error1",
+                    "name": "Error33"
+                },
+                {
+                    "groupPos": 330,
+                    "extends": "Error1",
+                    "name": "Error32"
+                },
+                {
+                    "groupPos": 340,
+                    "extends": "Error1",
+                    "name": "Error31"
+                },
+                {
+                    "groupPos": 350,
+                    "extends": "Error1",
+                    "name": "Error30"
+                },
+                {
+                    "groupPos": 360,
+                    "extends": "Error1",
+                    "name": "Error29"
+                },
+                {
+                    "groupPos": 370,
+                    "extends": "Error1",
+                    "name": "Error28"
+                },
+                {
+                    "groupPos": 380,
+                    "extends": "Error1",
+                    "name": "Error27"
+                },
+                {
+                    "groupPos": 390,
+                    "extends": "Error1",
+                    "name": "Error26"
+                },
+                {
+                    "groupPos": 400,
+                    "extends": "Error1",
+                    "name": "Error25"
+                },
+                {
+                    "groupPos": 410,
+                    "extends": "Error1",
+                    "name": "Error24"
+                },
+                {
+                    "groupPos": 420,
+                    "extends": "Error1",
+                    "name": "Error23"
+                },
+                {
+                    "groupPos": 430,
+                    "extends": "Error1",
+                    "name": "Error22"
+                },
+                {
+                    "groupPos": 440,
+                    "extends": "Error1",
+                    "name": "Error21"
+                },
+                {
+                    "groupPos": 450,
+                    "extends": "Error1",
+                    "name": "Error20"
+                },
+                {
+                    "groupPos": 460,
+                    "extends": "Error1",
+                    "name": "Error19"
+                },
+                {
+                    "groupPos": 470,
+                    "extends": "Error1",
+                    "name": "Error18"
+                },
+                {
+                    "groupPos": 480,
+                    "extends": "Error1",
+                    "name": "Error17"
+                },
+                {
+                    "groupPos": 490,
+                    "extends": "Error1",
+                    "name": "Error16"
+                },
+                {
+                    "groupPos": 500,
+                    "extends": "Error1",
+                    "name": "Error15"
+                },
+                {
+                    "groupPos": 510,
+                    "extends": "Error1",
+                    "name": "Error14"
+                },
+                {
+                    "groupPos": 520,
+                    "extends": "Error1",
+                    "name": "Error13"
+                },
+                {
+                    "groupPos": 530,
+                    "extends": "Error1",
+                    "name": "Error12"
+                },
+                {
+                    "groupPos": 540,
+                    "extends": "Error1",
+                    "name": "Error11"
+                },
+                {
+                    "groupPos": 550,
+                    "extends": "Error1",
+                    "name": "Error10"
+                },
+                {
+                    "groupPos": 560,
+                    "extends": "Error1",
+                    "name": "Error9"
+                },
+                {
+                    "groupPos": 570,
+                    "extends": "Error1",
+                    "name": "Error8"
+                },
+                {
+                    "groupPos": 580,
+                    "extends": "Error1",
+                    "name": "Error7"
+                },
+                {
+                    "groupPos": 590,
+                    "extends": "Error1",
+                    "name": "Error6"
+                },
+                {
+                    "groupPos": 600,
+                    "extends": "Error1",
+                    "name": "Error5"
+                },
+                {
+                    "groupPos": 610,
+                    "extends": "Error1",
+                    "name": "Error4"
+                },
+                {
+                    "groupPos": 620,
+                    "extends": "Error1",
+                    "name": "Error3"
+                },
+                {
+                    "groupPos": 630,
+                    "extends": "Error1",
+                    "name": "Error2"
+                },
+                {
+                    "group": "Errors",
+                    "name": "RF_EraseHistoricalFault",
+                    "family": "warning",
+                    "min": 0,
+                    "max": 0,
+                    "warn_hi": 0,
+                    "weight": 0,
+                    "unit": "",
+                    "values": [
+                        [
+                            1,
+                            "Clear Historical Faults",
+                            "hidden"
+                        ]
+                    ],
+                    "log": [],
+                    "groupPos": 1,
+                    "warn_low": 0,
+                    "type": "enum",
+                    "change": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "System Management",
+                    "name": "PumpDisable",
+                    "family": "onoff",
+                    "unit": "",
+                    "values": [
+                        [
+                            0,
+                            "--"
+                        ],
+                        [
+                            1,
+                            "Enable"
+                        ],
+                        [
+                            2,
+                            "Disable"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 8,
+                    "groupApp": "Status",
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "System Management",
+                    "name": "ResetActualFault",
+                    "family": "warning",
+                    "min": 0,
+                    "max": 0,
+                    "warn_hi": 0,
+                    "weight": 0,
+                    "unit": "",
+                    "values": [
+                        [
+                            1,
+                            "Reset Actual Fault"
+                        ]
+                    ],
+                    "log": [],
+                    "groupPos": 10,
+                    "groupApp": "Status",
+                    "warn_low": 0,
+                    "type": "enum",
+                    "change": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "System Management",
+                    "name": "ErasePartialFlowCounter",
+                    "family": "gear",
+                    "min": 0,
+                    "max": 0,
+                    "warn_hi": 0,
+                    "weight": 0,
+                    "unit": "",
+                    "values": [
+                        [
+                            1,
+                            "Reset partial flow counter",
+                            "hidden"
+                        ]
+                    ],
+                    "log": [],
+                    "groupPos": 11,
+                    "warn_low": 0,
+                    "type": "enum",
+                    "change": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "System Management",
+                    "name": "FactoryDefault",
+                    "family": "warning",
+                    "min": 0,
+                    "max": 0,
+                    "warn_hi": 0,
+                    "weight": 0,
+                    "unit": "",
+                    "values": [
+                        [
+                            1,
+                            "Restore Factory Default",
+                            "hidden"
+                        ]
+                    ],
+                    "log": [],
+                    "groupPos": 20,
+                    "warn_low": 0,
+                    "type": "enum",
+                    "change": [
+                        "R&D"
+                    ],
+                    "view": [
+                        "R&D"
+                    ]
+                },
+                {
+                    "values": [
+                        [
+                            1,
+                            "Reload HV Firmware",
+                            "hidden"
+                        ]
+                    ],
+                    "groupPos": 30,
+                    "extends": "FactoryDefault",
+                    "name": "ReloadHvFirmware"
+                },
+                {
+                    "name": "Restart",
+                    "extends": "FactoryDefault",
+                    "values": [
+                        [
+                            1,
+                            "Restart",
+                            "hidden"
+                        ]
+                    ],
+                    "groupPos": 40,
+                    "change": [
+                        "SERVICE",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Firmware Updates",
+                    "name": "FirmwareStatus",
+                    "family": "gear",
+                    "values": [
+                        [
+                            null,
+                            "Update Undefined",
+                            "hidden"
+                        ],
+                        [
+                            1,
+                            "Already Updated"
+                        ],
+                        [
+                            2,
+                            "Updates Available"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 10,
+                    "type": "enum",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Firmware Updates",
+                    "name": "UpdateType",
+                    "family": "gear",
+                    "values": [
+                        [
+                            null,
+                            "Automatic Update For Critical Version",
+                            "hidden"
+                        ],
+                        [
+                            1,
+                            "Automatic Update"
+                        ],
+                        [
+                            2,
+                            "Manual Update"
+                        ],
+                        [
+                            3,
+                            "No Update"
+                        ]
+                    ],
+                    "log": [],
+                    "groupPos": 20,
+                    "type": "enum",
+                    "change": [],
+                    "view": []
+                },
+                {
+                    "group": "Firmware Updates",
+                    "name": "UpdateFirmware",
+                    "family": "gear",
+                    "widget-modifier": {
+                        "0": "hidden",
+                        "d": "disabled",
+                        "h": "hidden"
+                    },
+                    "values": [
+                        [
+                            null,
+                            "--",
+                            "hidden"
+                        ],
+                        [
+                            1,
+                            "Update"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 30,
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Firmware Updates",
+                    "name": "UpdateProgress",
+                    "family": "progress_bar",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "groupPos": 40,
+                    "type": "measure",
+                    "view": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "name": "IdentifyDevice",
+                    "extends": "FactoryDefault",
+                    "values": [
+                        [
+                            1,
+                            "Identify",
+                            "hidden"
+                        ]
+                    ],
+                    "groupPos": 50,
+                    "change": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "view": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ]
+                },
+                {
+                    "group": "Extra Comfort",
+                    "name": "PowerShowerCommand",
+                    "family": "onoff",
+                    "unit": "",
+                    "values": [
+                        [
+                            null,
+                            "--"
+                        ],
+                        [
+                            1,
+                            "Start"
+                        ],
+                        [
+                            2,
+                            "Stop"
+                        ]
+                    ],
+                    "log": [
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D"
+                    ],
+                    "groupPos": 10,
+                    "groupApp": "Comfort",
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Extra Comfort",
+                    "name": "PowerShowerBoost",
+                    "family": "tachimeter",
+                    "values": [
+                        [
+                            20,
+                            "+ 20 %"
+                        ],
+                        [
+                            30,
+                            "+ 30 %"
+                        ],
+                        [
+                            40,
+                            "+ 40 %"
+                        ],
+                        [
+                            50,
+                            "+ 50 %"
+                        ],
+                        [
+                            60,
+                            "+ 60 %"
+                        ],
+                        [
+                            70,
+                            "+ 70 % "
+                        ],
+                        [
+                            80,
+                            "+ 80 %"
+                        ],
+                        [
+                            90,
+                            "+ 90 %"
+                        ]
+                    ],
+                    "log": [],
+                    "groupPos": 15,
+                    "groupApp": "Comfort",
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "widget": "time",
+                    "group": "Extra Comfort",
+                    "name": "PowerShowerCountdown",
+                    "family": "time",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "unit": "s",
+                    "log": [],
+                    "groupPos": 20,
+                    "groupApp": "Comfort",
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Extra Comfort",
+                    "name": "PowerShowerPressureBar",
+                    "family": "tachimeter",
+                    "widget-modifier": {
+                        "h": "hidden",
+                        "d": "disabled"
+                    },
+                    "weight": 0.1,
+                    "unit": "bar",
+                    "log": [],
+                    "groupPos": 30,
+                    "groupApp": "Comfort",
+                    "type": "measure",
+                    "change": [],
+                    "view": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "groupPos": 40,
+                    "weight": 0.1,
+                    "extends": "PowerShowerPressureBar",
+                    "name": "PowerShowerPressurePsi",
+                    "unit": "psi"
+                },
+                {
+                    "name": "PowerShowerDuration",
+                    "min": 300,
+                    "max": 7200,
+                    "extends": "PowerShowerCountdown",
+                    "log": [],
+                    "groupPos": 50,
+                    "groupApp": "Comfort",
+                    "change": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Extra Comfort",
+                    "name": "SleepModeEnable",
+                    "family": "onoff",
+                    "unit": "",
+                    "values": [
+                        [
+                            null,
+                            "Disable"
+                        ],
+                        [
+                            1,
+                            "Enable"
+                        ]
+                    ],
+                    "log": [],
+                    "groupPos": 60,
+                    "groupApp": "Comfort",
+                    "type": "enum",
+                    "change": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "SERVICE",
+                        "CUSTOMER",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "group": "Extra Comfort",
+                    "name": "SleepModeReduction",
+                    "family": "tachimeter",
+                    "values": [
+                        [
+                            20,
+                            "- 20 %"
+                        ],
+                        [
+                            30,
+                            "- 30 %"
+                        ],
+                        [
+                            40,
+                            "- 40 %"
+                        ],
+                        [
+                            50,
+                            "- 50 %"
+                        ],
+                        [
+                            60,
+                            "- 60 %"
+                        ],
+                        [
+                            70,
+                            "- 70 %"
+                        ],
+                        [
+                            80,
+                            "- 80 %"
+                        ],
+                        [
+                            90,
+                            "- 90 %"
+                        ]
+                    ],
+                    "log": [],
+                    "groupPos": 65,
+                    "groupApp": "Comfort",
+                    "type": "enum",
+                    "change": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ],
+                    "view": [
+                        "CUSTOMER",
+                        "SERVICE",
+                        "INSTALLER",
+                        "R&D",
+                        "LOCALINSTALLER"
+                    ]
+                },
+                {
+                    "groupPos": 70,
+                    "groupApp": "Comfort",
+                    "extends": "PowerShowerPressureBar",
+                    "name": "SleepModePressureBar"
+                },
+                {
+                    "groupPos": 80,
+                    "extends": "PowerShowerPressurePsi",
+                    "name": "SleepModePressurePsi",
+                    "weight": 0.1
+                },
+                {
+                    "name": "SleepModeStartTime",
+                    "min": 0,
+                    "max": 86340,
+                    "extends": "PowerShowerDuration",
+                    "groupPos": 90,
+                    "groupApp": "Comfort"
+                },
+                {
+                    "name": "SleepModeDuration",
+                    "min": 300,
+                    "max": 86400,
+                    "extends": "PowerShowerDuration",
+                    "groupPos": 100,
+                    "groupApp": "Comfort"
+                },
+                {
+                    "groupPos": 110,
+                    "groupApp": "Comfort",
+                    "extends": "PowerShowerCountdown",
+                    "name": "SleepModeCountdown"
+                }
+            ],
+            "groups": [
+                "Status",
+                "Group Status",
+                "Setpoint",
+                "Installer",
+                "Technical Assistance",
+                "Errors",
+                "Version",
+                "System Management",
+                "Firmware Updates",
+                "Debug"
+            ],
+            "warning": [
+                {
+                    "operator": "!=",
+                    "parameter": "SystemStatus",
+                    "recipients": [
+                        "CUSTOMER",
+                        "INSTALLER"
+                    ],
+                    "value": "0"
+                }
+            ]
+        },
+        "description": "e.sybox line"
+    }
+}
+
+Note: 'doc' parameter is using value of 'doc' field as returned in getDUMInfo request
+Note: 'version' value does not make a difference, 0-15 all seem to return same info
+      16 and higher gives response:
+{
+    "res": "OK",
+    "value": {
+        "version": 26
+    }
+}
+
+
+--------------------
+
+Request:
+GET http://<BOX_IP>/api/v1/services
+
+Response:
+{}
+
+Note: associated Bluetooth call seems to return all available Wifi networks.
+
+--------------------
+
+***
+*** Wifi (Q&A)
+***
+
+Q: how to get all serial numbers in a multi-device environment, i.e. when 
+there is a DConnect Box2 and one or more pumps:
+
+A:
+- keep enumerating /getDUMInfo/serialXX until Failures
+- request api/v1/configure/getparams to get params for all serials
+
+

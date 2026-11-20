@@ -35,8 +35,8 @@ class DabPumpsEntityHelper:
         self.SWITCH_CODES = SWITCH_CODES_ALL
         self.BINARY_SENSOR_CODES = BINARY_SENSOR_CODES_ALL
 
-        self.SWITCH_VALUES = [ self._coordinator._api._translate_string(v) for v in SWITCH_VALUES_ALL ]
-        self.BINARY_SENSOR_VALUES = [ self._coordinator._api._translate_string(v) for v in BINARY_SENSOR_VALUES_ALL ]
+        self.SWITCH_VALUES = [ self._coordinator.translate_string(v) for v in SWITCH_VALUES_ALL ]
+        self.BINARY_SENSOR_VALUES = [ self._coordinator.translate_string(v) for v in BINARY_SENSOR_VALUES_ALL ]
         
     
     async def async_setup_entry(self, target_platform, target_class, async_add_entities: AddEntitiesCallback):
@@ -128,8 +128,6 @@ class DabPumpsEntityHelper:
             if params.type == 'enum':
                 # With exactly 2 possible values that are of ON/OFF type it becomes a switch
                 if len(params.values or []) == 2:
-                    #AJH
-                    _LOGGER.debug(f"key: {key}, values:{params.values}, CODES_ALL={self.SWITCH_CODES}, VALUES_ALL={self.SWITCH_VALUES}")
                     if all(c in self.SWITCH_CODES and v in self.SWITCH_VALUES for c,v in params.values.items()):
                         return Platform.SWITCH
 
@@ -172,8 +170,6 @@ class DabPumpsEntityHelper:
         
                 # Is it a binary sensor?
                 if len(params.values or []) == 2:
-                    #AJH
-                    _LOGGER.debug(f"key: {key}, values:{params.values}, CODES_ALL={self.BINARY_SENSOR_CODES}, VALUES_ALL={self.BINARY_SENSOR_VALUES}")
                     if all(c in self.BINARY_SENSOR_CODES and v in self.BINARY_SENSOR_VALUES for c,v in params.values.items()):
                         return Platform.BINARY_SENSOR
     

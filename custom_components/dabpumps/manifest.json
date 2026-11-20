@@ -4,11 +4,12 @@
   "codeowners": [ "@ankohanse" ],
   "config_flow": true,
   "dependencies": [],
-  "documentation": "https://github.com/ankohanse/hass-dab-pumps",
+  "categories": ["water"],
+  "documentation": "https://github.com/disruptivepatternmaterial/hass-dab-pumps",
   "integration_type": "hub",
   "iot_class": "cloud_push",
-  "issue_tracker": "https://github.com/ankohanse/hass-dab-pumps/issues",
+  "issue_tracker": "https://github.com/disruptivepatternmaterial/hass-dab-pumps/issues",
   "loggers": ["custom_components.dabpumps"],
-  "requirements": ["pydabpumps==2.2.1"],
-  "version": "2026.10.3"
+  "requirements": ["pydabpumps==2.2.2"],
+  "version": "2026.11.1"
 }

@@ -1,5 +1,4 @@
-[![version](https://img.shields.io/github/v/release/ankohanse/hass-dab-pumps?style=for-the-badge)](https://github.com/ankohanse/hass-dab-pumps)
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-blue.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
+[![version](https://img.shields.io/github/v/release/disruptivepatternmaterial/hass-dab-pumps?style=for-the-badge)](https://github.com/disruptivepatternmaterial/hass-dab-pumps)
 [![maintained](https://img.shields.io/maintenance/yes/2026?style=for-the-badge)](https://github.com/ankohanse/hass-dab-pumps)
 [![license](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](https://github.com/ankohanse/hass-dab-pumps/blob/main/LICENSE)
 [![buy_me_a_coffee](https://img.shields.io/badge/If%20you%20like%20it-Buy%20me%20a%20coffee-yellow.svg?style=for-the-badge)](https://www.buymeacoffee.com/ankohanse)
@@ -87,27 +86,13 @@ Therefore it is recommended to create a separate account within DAB Pumps H2D or
 
 # Installation
 
-## HACS
-This custom integration is avalable via HACS (Home Assistant Community Store).
-1. In the HACS page, search for 'DAB Pumps'.
-2. Click on the found item to display its readMe (this page).
-3. At the bottom of the page press 'Download'
-2. Restart Home Assistant.
-3. Follow the UI based [Configuration](#configuration)
+This fork is not the catalog entry named DAB Pumps. Add this repository:
 
+[![Open your Home Assistant instance and open a repository in the Marketplace.](https://my.home-assistant.io/badges/marketplace_repository.svg)](https://my.home-assistant.io/redirect/marketplace_repository/?owner=disruptivepatternmaterial&repository=hass-dab-pumps&category=integration)
 
-## Manual install
-1. Under the `<config directory>/custom_components/` directory create a directory called `dabpumps`.
-2. Copy all files and subfolders within `dabpumps.zip` into the new `<config directory>/custom_components/dabpumps/` directory you just created.
-3. Restart Home Assistant.
-4. Follow the UI based [Configuration](#configuration)
+On Home Assistant before 2026.11 the same link opens HACS. Releases require Home Assistant 2026.11.0 or newer.
 
 # Configuration
-To start the setup of this custom integration:
-- go to Home Assistant's Integration Dashboard
-- Add Integration
-- Search for 'DAB Pumps'
-- Follow the prompts in the configuration step
 
 ## Step 1 - Connection details
 The following properties are required to connect to the Dab Pumps servers:

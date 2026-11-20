@@ -622,6 +622,7 @@ class DabPumpsApiWrap(AsyncDabPumps):
         self._device_config_map.update( { k:DabPumpsDeviceConfig(**v) for k,v in device_config_dict.items() } )
         self._device_state_map.update( { k:DabPumpsDeviceState(**v) for k,v in device_state_dict.items() } )
         self._string_map.update( { k:v for k,v in string_dict.items() } )
+        self._string_map_lang = self._language
 
 
     def _update_statistics(self, retries: int|None = None, duration: timedelta|None = None, fetch: DabPumpsFetchMethod|None = None):
